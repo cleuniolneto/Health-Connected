@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Assistir - Dr.Click</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #32cd32, #0077b6);
+      color: #fff;
+    }
+
+    header { display: flex; justify-content: flex-end; padding: 15px; }
+
+    .hamburger { cursor: pointer; width: 30px; height: 22px; display: flex; flex-direction: column; justify-content: space-between; }
+    .hamburger div { background: #fff; height: 4px; border-radius: 2px; }
+
+    .menu {
+      position: fixed; top: 0; right: -260px; width: 260px; height: 100%;
+      background: rgba(0, 0, 0, 0.95); padding-top: 60px; transition: right 0.3s ease;
+    }
+    .menu a { display: block; color: #fff; padding: 15px 20px; text-decoration: none; border-bottom: 1px solid #444; }
+    .menu a:hover { background: #32cd32; }
+    .menu.active { right: 0; }
+
+    .container {
+      max-width: 800px;
+      margin: 30px auto;
+      padding: 20px;
+      background: rgba(255,255,255,0.15);
+      border-radius: 12px;
+    }
+
+    h2 { text-align: center; }
+
+    .section-title {
+      margin-top: 30px;
+      margin-bottom: 10px;
+      font-weight: bold;
+      font-size: 20px;
+      text-align: left;
+    }
+
+    .video-box {
+      background: rgba(0,0,0,0.35);
+      border-radius: 10px;
+      padding: 15px;
+      margin-bottom: 20px;
+    }
+
+    iframe, video {
+      width: 100%;
+      border-radius: 10px;
+    }
+
+    .back-btn {
+      width: 100%;
+      margin-top: 20px;
+      padding: 14px;
+      border: none;
+      border-radius: 8px;
+      background: #0077b6;
+      color: #fff;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    .back-btn:hover { background: #32cd32; }
+  </style>
+</head>
+
+<body>
+
+<header>
+  <div class="hamburger" onclick="toggleMenu()">
+    <div></div><div></div><div></div>
+  </div>
+</header>
+
+<nav class="menu" id="menu">
+  <a href="PERFIL.html">Perfil</a>
+  <a href="MINHA_SAUDE.html">Minha Saúde</a>
+  <a href="CANDIDATAR.html">Candidatar</a>
+  <a href="CONSULTA.html">Consulta</a>
+  <a href="ASSISTIR.html">Assistir</a>
+  <a href="CONTACTAR.html">Contactar</a>
+  <a href="DADOS_GERAIS.html">Dados Gerais</a> 
+  <a href="HOME 2.html">Voltar ao Home</a>
+</nav>
+
+<div class="container">
+
+  <h2>Conteúdos Educativos</h2>
+
+  <!-- Seção YouTube -->
+  <p class="section-title">Vídeos recomendados (YouTube)</p>
+
+  <div class="video-box">
+    <iframe height="250" src="https://www.youtube.com/embed/6ZfuNTqbHE8" frameborder="0" allowfullscreen></iframe>
+    <p style="margin-top:8px;">Como manter uma rotina de saúde preventiva</p>
+  </div>
+
+  <div class="video-box">
+    <iframe height="250" src="https://www.youtube.com/embed/a5xTVLGe4eM" frameborder="0" allowfullscreen></iframe>
+    <p style="margin-top:8px;">Como funciona uma consulta de triagem</p>
+  </div>
+
+  <div class="video-box">
+    <iframe height="250" src="https://www.youtube.com/shorts/mvK7Lv4r9X0?feature=share" frameborder="0" allowfullscreen></iframe>
+    <p style="margin-top:8px;">Como manter uma rotina de saúde preventiva</p>
+  </div>
+
+
+  <!-- Seção Vídeos internos -->
+  <p class="section-title">Vídeos internos (do próprio aplicativo)</p>
+
+  <div class="video-box">
+    <video controls>
+      <source src="video1.mp4" type="video/mp4">
+    </video>
+    <p style="margin-top:8px;">Introdução ao uso da plataforma</p>
+  </div>
+
+  <div class="video-box">
+    <video controls>
+      <source src="video2.mp4" type="video/mp4">
+    </video>
+    <p style="margin-top:8px;">Como agendar consultas</p>
+  </div>
+
+  <button class="back-btn" onclick="window.location.href='HOME 2.html'">Voltar ao Home</button>
+
+</div>
+
+
+<script>
+const token = localStorage.getItem("token");
+if(!token) window.location.href = "login.html";
+function toggleMenu() {
+  document.getElementById('menu').classList.toggle('active');
+}
+</script>
+
+</body>
+</html>
+
+
+
+
+
+
+

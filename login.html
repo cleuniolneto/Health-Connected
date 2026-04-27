@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Health Connected</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,Helvetica,sans-serif;}
+body{height:100vh;background:linear-gradient(135deg,#7CFC00,#1E90FF);display:flex;justify-content:center;align-items:center;color:#fff;overflow:hidden;}
+#splash{position:fixed;top:0;left:0;width:100%;height:100%;background:white;display:flex;justify-content:center;align-items:center;z-index:9999;transition:opacity 1s;}
+#splash img{width:200px;height:200px;object-fit:contain;}
+.container{opacity:0;transition:opacity 1.2s; text-align:center;}
+.container.show{opacity:1;}
+h1{font-size:3rem;margin-bottom:20px;}
+p{font-size:1.3rem;max-width:700px;margin:0 auto 30px;}
+.btn-login{position:fixed;top:20px;left:20px;padding:12px 20px;background:#0047AB;color:white;border:none;border-radius:10px;font-size:16px;font-weight:bold;cursor:pointer;display:none;}
+.btn-login.show{display:block;}
+.modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);justify-content:center;align-items:center;}
+.modal-content{background:white;color:#333;padding:30px;border-radius:12px;width:350px;text-align:center;position:relative;}
+.modal-content input{width:90%;padding:10px;margin:8px 0;border:1px solid #ccc;border-radius:8px;}
+.modal-content button{margin-top:15px;padding:10px 18px;border:none;border-radius:8px;background:#7CFC00;color:#0047AB;font-weight:bold;cursor:pointer;}
+.link{margin-top:15px;display:block;font-size:14px;color:#0047AB;cursor:pointer;text-decoration:underline;}
+.close{position:absolute;top:10px;right:15px;font-size:20px;cursor:pointer;color:#333;}
+.code-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);justify-content:center;align-items:center;z-index:10001;}
+.code-card{width:min(92vw,420px);background:#fff;color:#1f2937;border-radius:14px;padding:18px;text-align:center;}
+.code-box{font-size:34px;font-weight:800;letter-spacing:6px;margin:12px 0;padding:10px;border:2px dashed #9ca3af;border-radius:10px;background:#f9fafb;}
+.code-actions{display:flex;gap:8px;}
+.code-actions button{flex:1;border:none;padding:10px;border-radius:8px;cursor:pointer;font-weight:700;}
+.btn-copy{background:#1e90ff;color:#fff;}
+.btn-next{background:#10b981;color:#fff;}
+</style>
+</head>
+<body>
+<div id="splash"><img src="logo.jpg" alt="Health Connected"></div>
+<button class="btn-login" id="loginBtn" onclick="openModal('login')">Login</button>
+<div class="container" id="home"><h1>Bem-vindo ao Health Connected</h1><p>Plataforma digital que conecta tecnologia e saude em um so lugar.</p></div>
+
+<div class="modal" id="loginModal"><div class="modal-content"><span class="close" onclick="closeModal()">&times;</span><h2>Login</h2><input type="email" id="loginEmail" placeholder="E-mail"><input type="password" id="loginSenha" placeholder="Senha"><button onclick="login()">Entrar</button><span class="link" onclick="switchModal('cadastro')">Nao tenho conta - Criar</span><span class="link" onclick="window.location.href='VERIFY_EMAIL.html'">Ja tenho codigo de verificacao</span></div></div>
+<div class="modal" id="cadastroModal"><div class="modal-content"><span class="close" onclick="closeModal()">&times;</span><h2>Criar Conta</h2><input type="text" id="nomeCadastro" placeholder="Nome completo"><input type="email" id="emailCadastro" placeholder="E-mail"><input type="password" id="senhaCadastro" placeholder="Senha"><input type="password" id="senhaConfirma" placeholder="Confirmar senha"><button onclick="cadastrar()">Registrar</button><span class="link" onclick="switchModal('login')">Ja tenho conta - Entrar</span></div></div>
+
+<div class="code-modal" id="codeModal">
+  <div class="code-card">
+    <h3>Codigo de verificacao</h3>
+    <p>Guarde este codigo e confirme na proxima tela.</p>
+    <div class="code-box" id="codeValue">------</div>
+    <div class="code-actions">
+      <button class="btn-copy" onclick="copyCode()">Copiar</button>
+      <button class="btn-next" onclick="goVerify()">Continuar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const BASE_URL = window.location.protocol === "file:" ? "http://localhost:3000" : window.location.origin;
+let lastCode = "";
+window.addEventListener("load", ()=>{ setTimeout(()=>{ document.getElementById("splash").style.opacity=0; setTimeout(()=>{ document.getElementById("splash").style.display="none"; document.getElementById("home").classList.add("show"); document.getElementById("loginBtn").classList.add("show"); },900); },1200); });
+function openModal(type){ closeModal(); document.getElementById(type==='login'?'loginModal':'cadastroModal').style.display='flex'; }
+function closeModal(){ document.getElementById("loginModal").style.display='none'; document.getElementById("cadastroModal").style.display='none'; }
+function switchModal(type){ closeModal(); openModal(type); }
+function showCodeModal(code){ lastCode = code || ""; document.getElementById("codeValue").innerText = code || "------"; document.getElementById("codeModal").style.display = "flex"; }
+function goVerify(){ window.location.href = "VERIFY_EMAIL.html"; }
+async function copyCode(){ if(!lastCode) return; await navigator.clipboard.writeText(lastCode); alert("Codigo copiado."); }
+
+async function login(){
+  const email=document.getElementById("loginEmail").value.trim();
+  const senha=document.getElementById("loginSenha").value;
+  const res=await fetch(`${BASE_URL}/auth/login`,{method:'POST',headers:{"Content-Type":"application/json"},body:JSON.stringify({email,senha})});
+  const data=await res.json();
+  if(!data.ok || !data.token) return alert(data.error||"Email ou senha invalidos");
+
+  localStorage.setItem("token",data.token);
+  localStorage.setItem("nome",data.nome);
+  localStorage.setItem("email",data.email);
+  localStorage.setItem("pendingVerificationEmail",data.email);
+
+  if(!data.emailVerificado) return window.location.href="VERIFY_EMAIL.html";
+  if(data.termosStatus !== "aceite") return window.location.href="TERMS.html";
+  if(!data.onboardingCompleto) return window.location.href="ONBOARDING.html";
+  if(data.role === "profissional" && data.profissionalStatus !== "Aprovado") alert("Aguardando aprovacao da carteira profissional.");
+  window.location.href="HOME 2.html";
+}
+
+async function cadastrar(){
+  const nome=document.getElementById("nomeCadastro").value.trim();
+  const email=document.getElementById("emailCadastro").value.trim();
+  const senha=document.getElementById("senhaCadastro").value;
+  const conf=document.getElementById("senhaConfirma").value;
+  if(senha!==conf) return alert("As senhas nao coincidem");
+
+  const res=await fetch(`${BASE_URL}/auth/cadastro`,{method:'POST',headers:{"Content-Type":"application/json"},body:JSON.stringify({nome,email,senha})});
+  const data=await res.json();
+  if(!data.ok) return alert(data.error||"Erro ao criar conta");
+
+  localStorage.setItem("pendingVerificationEmail",email);
+  if(data.verificationCode) return showCodeModal(data.verificationCode);
+  alert(data.message || "Conta criada. Verifique seu codigo.");
+  window.location.href="VERIFY_EMAIL.html";
+}
+</script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+

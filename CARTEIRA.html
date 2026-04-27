@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Carteira Digital</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,Helvetica,sans-serif;}
+body{background:linear-gradient(135deg,#0ea5e9,#16a34a);color:#fff;min-height:100vh;}
+.wrap{width:min(900px,94vw);margin:0 auto;padding:26px 18px 40px;}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;gap:10px;}
+.header h2{font-size:26px;letter-spacing:0.4px;}
+.header button{padding:10px 16px;border:none;border-radius:10px;background:#0f172a;color:#fff;font-weight:700;cursor:pointer;}
+.card{background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.25);border-radius:16px;padding:18px;box-shadow:0 8px 20px rgba(0,0,0,0.18);}
+.grid{display:grid;grid-template-columns:1fr 220px;gap:16px;align-items:center;}
+.small{font-size:12px;opacity:0.9;}
+.qr{background:#fff;padding:10px;border-radius:12px;display:flex;align-items:center;justify-content:center;}
+.list{margin-top:10px;}
+.list p{margin:6px 0;}
+@media(max-width:720px){.grid{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <h2>Carteira Digital do Paciente</h2>
+    <button onclick="window.location.href='HOME 2.html'">Voltar</button>
+  </div>
+
+  <div class="card">
+    <div class="grid">
+      <div>
+        <h3 id="nome">Paciente</h3>
+        <div class="small" id="email">email@exemplo.com</div>
+        <div class="list">
+          <p><b>Tipo sanguineo:</b> <span id="tipoSanguineo">-</span></p>
+          <p><b>Alergias:</b> <span id="alergias">-</span></p>
+          <p><b>Doencas:</b> <span id="doencas">-</span></p>
+          <p><b>Contacto emergencia:</b> <span id="contactoEmergencia">-</span></p>
+        </div>
+      </div>
+      <div class="qr"><canvas id="qr"></canvas></div>
+    </div>
+    <p class="small" style="margin-top:12px;">O QR code nao revela dados sensiveis sem consentimento. Use apenas em ambiente clinico.</p>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<script>
+const BASE_URL = window.location.protocol === "file:" ? "http://localhost:3000" : window.location.origin;
+const token = localStorage.getItem("token");
+if(!token) window.location.href = "login.html";
+
+async function loadCard(){
+  const res = await fetch(`${BASE_URL}/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
+  const data = await res.json();
+  if(!data.ok){ localStorage.clear(); return window.location.href="login.html"; }
+  const u = data.user;
+  document.getElementById("nome").innerText = u.nome || "Paciente";
+  document.getElementById("email").innerText = u.email || "";
+  document.getElementById("tipoSanguineo").innerText = u.tipoSanguineo || "-";
+  document.getElementById("alergias").innerText = u.alergias || "-";
+  document.getElementById("doencas").innerText = u.doencas || "-";
+  document.getElementById("contactoEmergencia").innerText = u.contactoEmergencia || "-";
+
+  const payload = {
+    id: u._id,
+    nome: u.nome,
+    tipoSanguineo: u.tipoSanguineo || "",
+    alergias: u.alergias || "",
+    contato: u.contactoEmergencia || ""
+  };
+  QRCode.toCanvas(document.getElementById("qr"), JSON.stringify(payload), { width: 180 });
+}
+
+loadCard().catch(console.error);
+</script>
+</body>
+</html>

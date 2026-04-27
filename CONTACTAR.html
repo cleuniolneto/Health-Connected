@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Contactar Profissionais</title>
+<style>
+body{margin:0;font-family:Arial,sans-serif;background:linear-gradient(135deg,#32cd32,#0077b6);color:#fff;}
+header{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;background:rgba(0,0,0,0.2);}
+header button{background:#1e90ff;color:#fff;border:none;border-radius:8px;padding:8px 10px;cursor:pointer;font-weight:700;}
+.wrap{max-width:980px;margin:20px auto;padding:0 12px;display:grid;grid-template-columns:300px 1fr;gap:12px;}
+.card{background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.26);border-radius:12px;padding:12px;}
+input,select,button{width:100%;padding:10px;border:none;border-radius:8px;margin-top:8px;}
+button{background:#1e90ff;color:#fff;font-weight:700;cursor:pointer;}
+.prof{padding:10px;border:1px solid rgba(255,255,255,0.2);border-radius:8px;margin-top:8px;background:rgba(0,0,0,0.2);}
+.prof h4{margin:0 0 4px;}
+.prof small{opacity:0.9;}
+@media(max-width:900px){.wrap{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<header>
+  <h2 style="margin:0;">Contactar Profissionais</h2>
+  <div>
+    <button onclick="window.location.href='CONTACTAR_BOT.html'">Chatbot</button><button onclick="window.location.href='FARMACIAS.html'">Farmacias</button>
+    <button onclick="window.location.href='HOME 2.html'">Home</button>
+  </div>
+</header>
+
+<div class="wrap">
+  <section class="card">
+    <h3>Filtros</h3>
+    <label>Especialidade</label>
+    <select id="especialidade">
+      <option value="">Todas</option>
+      <option value="Pediatria">Pediatria</option>
+      <option value="Cardiologia">Cardiologia</option>
+      <option value="Clinica Geral">Clinica Geral</option>
+      <option value="Dentista">Dentista</option>
+      <option value="Psicologia">Psicologia</option>
+      <option value="Oftalmologia">Oftalmologia</option>
+    </select>
+    <label>Buscar por nome</label>
+    <input id="q" placeholder="Ex: Ana, Pedro, etc.">
+    <button onclick="buscar()">Buscar profissionais</button>
+  </section>
+
+  <section class="card">
+    <h3>Profissionais na plataforma</h3>
+    <div id="lista"></div>
+  </section>
+</div>
+
+
+<script>
+const BASE_URL = window.location.protocol === "file:" ? "http://localhost:3000" : window.location.origin;
+const token = localStorage.getItem("token");
+if(!token) window.location.href = "login.html";
+
+async function buscar(){
+  const esp = document.getElementById("especialidade").value;
+  const q = document.getElementById("q").value.trim();
+  const url = `${BASE_URL}/api/profissionais?especialidade=${encodeURIComponent(esp)}&q=${encodeURIComponent(q)}`;
+  const res = await fetch(url, { headers:{"Authorization":`Bearer ${token}`}});
+  const data = await res.json();
+  const box = document.getElementById("lista");
+  box.innerHTML = "";
+
+  if(!data.ok) return box.innerHTML = `<small>${data.error || 'Falha ao carregar profissionais.'}</small>`;
+  if(!data.profissionais.length) return box.innerHTML = "<small>Nenhum profissional encontrado para este filtro.</small>";
+
+  data.profissionais.forEach(p=>{
+    const div = document.createElement("div");
+    div.className = "prof";
+    div.innerHTML = `<h4>${p.nome}</h4><small>${p.especialidade || 'Sem especialidade'}</small>`;
+    const b = document.createElement("button");
+    b.innerText = "Abrir conversa";
+    b.onclick = ()=>window.location.href = `CONTACTAR_CHAT.html?user=${encodeURIComponent(p._id)}`;
+    div.appendChild(b);
+    box.appendChild(div);
+  });
+}
+
+buscar().catch(console.error);
+</script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+

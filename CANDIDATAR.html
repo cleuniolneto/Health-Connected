@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Candidatar - Dr.Click</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #32cd32, #0077b6);
+      color: #fff;
+    }
+
+    header { display: flex; justify-content: flex-end; padding: 15px; }
+
+    
+    /* Menu hambúrguer */
+    .menu-btn {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      cursor: pointer;
+      z-index: 1000;
+    }
+
+    .menu-btn div {
+      width: 30px;
+      height: 4px;
+      background: white;
+      margin: 6px 0;
+      border-radius: 5px;
+    }
+
+   /* Menu lateral */
+  .side-menu {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 250px;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.95);
+    padding: 20px;
+    transition: transform 0.3s ease-in-out;
+    transform: translateX(100%); /* Escondido fora da tela */
+    z-index: 999;
+  }
+
+  .side-menu.open {
+    transform: translateX(0); /* Entra suavemente */
+  }
+    .side-menu.open {
+      right: 0;
+    }
+
+    .side-menu h3 {
+      margin-bottom: 20px;
+      border-bottom: 1px solid #7CFC00;
+      padding-bottom: 10px;
+      color: #7CFC00;
+    }
+
+    .side-menu button {
+      display: block;
+      width: 100%;
+      margin: 10px 0;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      background: #1E90FF;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    .side-menu button:hover {
+      background: #0066cc;
+    }
+
+
+
+    .container {
+      max-width: 700px;
+      margin: 40px auto;
+      padding: 25px;
+      background: rgba(255,255,255,0.15);
+      border-radius: 12px;
+    }
+
+    .form-group { margin-bottom: 15px; }
+    .form-group label { display: block; margin-bottom: 6px; font-weight: bold; }
+    .form-group input, .form-group select, .form-group textarea {
+      width: 100%; padding: 12px; border: none; border-radius: 8px; outline: none;
+    }
+    textarea { resize: none; height: 80px; }
+
+    .submit-btn, .back-btn {
+      width: 100%; padding: 14px; border: none; border-radius: 8px;
+      font-size: 16px; cursor: pointer; margin-top: 15px;
+    }
+    .submit-btn { background: #0077b6; color: #fff; }
+    .submit-btn:hover { background: #32cd32; }
+    .back-btn { background: #444; color: #fff; }
+    .back-btn:hover { background: #222; }
+  </style>
+</head>
+
+<body>
+
+  <header>
+    <div class="hamburger" onclick="toggleMenu()">
+      <div></div>
+      <div></div>
+      <div></div>
+    </div> <!-- Botão Menu -->
+  <div class="menu-btn" onclick="toggleMenu()">
+    <div></div>
+    <div></div>
+    <div></div>
+  </div>
+
+  <!-- Menu lateral -->
+<div class="side-menu" id="sideMenu">
+  <h3>Menu</h3>
+  <button onclick="window.location.href='HOME 2.html'">Home</button>
+  <button onclick="window.location.href='PERFIL.html'">Perfil</button>
+  <button onclick="window.location.href='MINHA_SAUDE.html'">Minha Saúde</button>
+  <button onclick="window.location.href='CONSULTA.html'">Consulta</button>
+  <button onclick="window.location.href='ASSISTIR.html'">Assistir</button>
+  <button onclick="window.location.href='CONTACTAR.html'">Contactar</button>
+  <button onclick="window.location.href='DADOS_GERAIS.html'">Dados Gerais</button>
+  <button onclick="window.location.href='login.html'">SAIR</button>
+</div>
+  </header>
+
+
+<div class="container">
+  <h2 style="text-align:center;">Candidatar-se como Profissional</h2>
+
+  <div class="form-group">
+    <label>Nome Completo:</label>
+    <input type="text" placeholder="Digite seu nome completo">
+  </div>
+
+  <div class="form-group">
+    <label>Especialidade:</label>
+    <select>
+      <option>Médico</option>
+      <option>Enfermeiro</option>
+      <option>Fisioterapeuta</option>
+      <option>Psicólogo</option>
+      <option>Outro</option>
+    </select>
+  </div>
+
+  <div class="form-group">
+    <label>Número de Registro Profissional (se houver):</label>
+    <input type="text" placeholder="Nº do CRM / Ordem dos Enfermeiros / etc.">
+  </div>
+
+  <div class="form-group">
+    <label>Experiência Profissional:</label>
+    <textarea placeholder="Ex.: 5 anos na pediatria, atendimento domiciliar, etc."></textarea>
+  </div>
+
+  <div class="form-group">
+    <label>Contacto:</label>
+    <input type="tel" placeholder="(+244) 900 000 000">
+  </div>
+
+  <button class="submit-btn" onclick="alert('Dados enviados com sucesso!')">Enviar Candidatura</button>
+  <button class="back-btn" onclick="window.location.href='HOME 2.html'">Voltar ao Home</button>
+</div>
+
+
+<script>
+const token = localStorage.getItem("token");
+if(!token) window.location.href = "login.html";
+  // Menu lateral
+  function toggleMenu() {
+    document.getElementById("sideMenu").classList.toggle("open");
+   }
+</script>
+
+</body>
+</html>
+
+
+
+
+
+
+

@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chat Bot - Dr.Click</title>
+<style>
+body { margin: 0; font-family: Arial, sans-serif; background: linear-gradient(135deg, #32cd32, #0077b6); color: white; }
+header { display:flex; justify-content:flex-end; padding:15px; }
+.hamburger { cursor:pointer; width:30px; height:22px; display:flex; flex-direction:column; justify-content:space-between; }
+.hamburger div { background:#fff; height:4px; border-radius:2px; }
+.menu { position:fixed; top:0; right:-260px; width:260px; height:100%; background:rgba(0,0,0,0.95); padding-top:60px; transition:0.3s; z-index:1000; }
+.menu a { display:block; padding:15px; color:white; border-bottom:1px solid #444; text-decoration:none; }
+.menu.active{ right:0; }
+.wrap{max-width:920px;margin:10px auto;padding:0 10px;display:grid;grid-template-columns:1fr 280px;gap:10px;}
+.chat-box { background: rgba(255,255,255,0.1); height: 72vh; padding: 15px; border-radius: 12px; overflow-y: auto; }
+.bubble { padding: 10px 14px; border-radius: 14px; margin: 8px 0; max-width: 78%; line-height: 1.4; }
+.user { background: #0077b6; margin-left: auto; text-align: right; }
+.bot { background: rgba(0,0,0,0.4); margin-right: auto; text-align: left; }
+.input-area { display:flex; margin-top:8px; }
+.input-area input { flex:1; padding:12px; border:none; border-radius:8px; outline:none; }
+.input-area button { padding:12px 18px; background:#32cd32; border:none; border-radius:8px; color:white; margin-left:8px; cursor:pointer; font-weight:bold; }
+.dict{background:rgba(0,0,0,0.25);border-radius:12px;padding:12px;height:72vh;overflow-y:auto;}
+.dict input{width:100%;padding:10px;border:none;border-radius:8px;}
+.item{background:rgba(255,255,255,0.14);padding:10px;border-radius:8px;margin-top:8px;cursor:pointer;}
+@media (max-width:900px){.wrap{grid-template-columns:1fr;}.dict{height:auto;max-height:300px;}}
+</style>
+</head>
+<body>
+<header><div class="hamburger" onclick="toggleMenu()"><div></div><div></div><div></div></div></header>
+<nav class="menu" id="menu">
+  <a href="HOME 2.html">Home</a>
+  <a href="PERFIL.html">Perfil</a>
+  <a href="CONSULTA.html">Consulta</a>
+  <a href="DADOS_GERAIS.html">Dados Gerais</a>
+</nav>
+
+<div class="wrap">
+  <div>
+    <div class="chat-box" id="chat"></div>
+    <div class="input-area">
+      <input type="text" id="msg" placeholder="Digite sua pergunta de saude...">
+      <button onclick="sendMessage()">Enviar</button>
+    </div>
+  </div>
+  <aside class="dict">
+    <h3>Dicionario de Saude</h3>
+    <input id="dictSearch" placeholder="Buscar termo..." oninput="loadDictionary()">
+    <div id="dictList"></div>
+  </aside>
+</div>
+
+
+<script>
+const BASE_URL = window.location.protocol === "file:" ? "http://localhost:3000" : window.location.origin;
+const token = localStorage.getItem("token");
+if(!token) window.location.href = "login.html";
+
+function toggleMenu(){ document.getElementById('menu').classList.toggle('active'); }
+
+function addBubble(type,text){
+  const chat = document.getElementById("chat");
+  chat.innerHTML += `<div class='bubble ${type}'>${text}</div>`;
+  chat.scrollTop = chat.scrollHeight;
+}
+
+async function loadDictionary(){
+  const q = document.getElementById("dictSearch").value.trim();
+  const res = await fetch(`${BASE_URL}/api/chatbot/dicionario?q=${encodeURIComponent(q)}`, {
+    headers: { "Authorization": `Bearer ${token}` }
+  });
+  const data = await res.json();
+  const list = document.getElementById("dictList");
+  list.innerHTML = "";
+  (data.items || []).forEach(item => {
+    const div = document.createElement("div");
+    div.className = "item";
+    div.innerHTML = `<b>${item.tema}</b><br><small>${item.descricao}</small>`;
+    div.onclick = () => { document.getElementById("msg").value = item.tema; sendMessage(); };
+    list.appendChild(div);
+  });
+}
+
+async function sendMessage(){
+  const input = document.getElementById("msg");
+  const text = input.value.trim();
+  if(!text) return;
+  addBubble("user", text);
+  input.value = "";
+
+  const res = await fetch(`${BASE_URL}/api/chatbot/reply`, {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ message: text })
+  });
+  const data = await res.json();
+  if(!data.ok) return addBubble("bot", data.error || "Erro no chatbot");
+  addBubble("bot", data.reply);
+}
+
+addBubble("bot", "Ola! Sou seu assistente de saude. Pergunte sobre hipertensao, diabetes, febre, saude infantil ou mental.");
+loadDictionary().catch(console.error);
+</script>
+</body>
+</html>
+
+
+
+
+
+
+
+

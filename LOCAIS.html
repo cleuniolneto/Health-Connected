@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Locais</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,Helvetica,sans-serif;}
+body{background:linear-gradient(135deg,#0ea5e9,#16a34a);color:#fff;min-height:100vh;}
+.wrap{width:min(1100px,94vw);margin:0 auto;padding:26px 18px 40px;}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;gap:10px;}
+.header h2{font-size:26px;letter-spacing:0.4px;}
+.header button{padding:10px 16px;border:none;border-radius:10px;background:#0f172a;color:#fff;font-weight:700;cursor:pointer;}
+.panel{background:rgba(15,23,42,0.45);padding:16px;border-radius:14px;margin-bottom:18px;border:1px solid rgba(255,255,255,0.18);}
+.panel label{display:block;font-weight:700;margin:10px 0 6px;}
+.panel input,.panel select{width:100%;padding:10px;border:none;border-radius:10px;}
+.panel .row{display:flex;gap:12px;flex-wrap:wrap;}
+.panel .row > div{flex:1;min-width:180px;}
+.panel .primary{margin-top:12px;width:100%;padding:12px;border-radius:10px;background:#1d4ed8;color:#fff;font-weight:700;}
+.list{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;}
+.card{background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.25);border-radius:14px;padding:14px;box-shadow:0 8px 20px rgba(0,0,0,0.18);}
+.card h3{margin-bottom:6px;color:#eaffea;}
+.small{font-size:12px;opacity:0.9;}
+.badge{display:inline-block;padding:4px 10px;border-radius:999px;background:rgba(0,0,0,0.35);margin-right:6px;font-size:12px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="header">
+  <h2>Locais: Hospitais, Farmacias e Postos</h2>
+  <button onclick="window.location.href='HOME 2.html'">Voltar</button>
+</div>
+
+<div class="panel">
+  <div class="row">
+    <div>
+      <label>Tipo</label>
+      <select id="tipo">
+        <option value="">Todos</option>
+        <option value="hospital">Hospital</option>
+        <option value="farmacia">Farmacia</option>
+        <option value="posto">Posto Medico</option>
+      </select>
+    </div>
+    <div>
+      <label>Nome do local</label>
+      <input id="q" placeholder="Nome do local">
+    </div>
+    <div>
+      <label>Especialidade</label>
+      <input id="especialidade" placeholder="Ex: Pediatria">
+    </div>
+  </div>
+  <div class="row">
+    <div>
+      <label>Nome do medico</label>
+      <input id="medico" placeholder="Ex: Dr. Paulo">
+    </div>
+    <div>
+      <label>Farmaco</label>
+      <input id="farmaco" placeholder="Ex: Paracetamol">
+    </div>
+    <div>
+      <label>Localizacao</label>
+      <button style="width:100%;margin-top:6px;" onclick="usarGeo()">Ordenar por proximidade</button>
+      <div class="small" id="geoInfo">Sem localizacao</div>
+    </div>
+  </div>
+  <button class="primary" onclick="buscar()">Pesquisar locais</button>
+</div>
+
+<div class="list" id="lista"></div>
+
+<script>
+const BASE_URL = window.location.protocol === "file:" ? "http://localhost:3000" : window.location.origin;
+const token = localStorage.getItem("token");
+if(!token) window.location.href = "login.html";
+let geo = { lat: null, lng: null };
+
+function usarGeo(){
+  if(!navigator.geolocation){ return alert("Geolocalizacao nao suportada."); }
+  navigator.geolocation.getCurrentPosition((pos)=>{
+    geo.lat = pos.coords.latitude; geo.lng = pos.coords.longitude;
+    document.getElementById("geoInfo").innerText = `Localizacao ativa (${geo.lat.toFixed(4)}, ${geo.lng.toFixed(4)})`;
+  }, ()=>alert("Nao foi possivel obter localizacao"));
+}
+
+async function buscar(){
+  const tipo = document.getElementById("tipo").value;
+  const q = document.getElementById("q").value.trim();
+  const especialidade = document.getElementById("especialidade").value.trim();
+  const medico = document.getElementById("medico").value.trim();
+  const farmaco = document.getElementById("farmaco").value.trim();
+  const entrega = document.getElementById("entrega").value;
+
+  let url = `${BASE_URL}/api/locais/search?tipo=${encodeURIComponent(tipo)}&q=${encodeURIComponent(q)}&especialidade=${encodeURIComponent(especialidade)}&medico=${encodeURIComponent(medico)}&farmaco=${encodeURIComponent(farmaco)}&entrega=${encodeURIComponent(entrega)}`;
+  if(geo.lat !== null && geo.lng !== null){ url += `&lat=${geo.lat}&lng=${geo.lng}`; }
+
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` }});
+  const data = await res.json();
+  const box = document.getElementById("lista");
+  box.innerHTML = "";
+  if(!data.ok) return box.innerHTML = `<div class='card'>${data.error || 'Falha ao carregar'}</div>`;
+  if(!data.facilities.length) return box.innerHTML = "<div class='card'>Nenhum local encontrado.</div>";
+
+  data.facilities.forEach(f=>{
+    const div = document.createElement("div");
+    div.className = "card";
+    div.innerHTML = `<h3>${f.nome}</h3><div class='small'>${f.tipo.toUpperCase()} | ${f.endereco || ''}</div><div class='small'>Contacto: ${f.contacto || 'N/D'}</div>`;
+    if(f.distanciaKm !== undefined){
+      div.innerHTML += `<div class='badge'>${f.distanciaKm.toFixed(2)} km</div>`;
+    }
+    if((f.especialidades||[]).length){
+      div.innerHTML += `<div class='small'>Especialidades: ${(f.especialidades||[]).join(', ')}</div>`;
+    }
+    if((f.medicos||[]).length){
+      div.innerHTML += `<div class='small'>Medicos: ${(f.medicos||[]).map(m=>m.nome + (m.especialidade?` (${m.especialidade})`:'' )).join(', ')}</div>`;
+    }
+    if(f.tipo === 'farmacia' && (f.farmacos||[]).length){
+      div.innerHTML += `<div class='small'>Farmacos: ${(f.farmacos||[]).slice(0,4).map(m=>m.nome).join(', ')}${(f.farmacos||[]).length>4?'...':''}</div>`;
+    }
+    box.appendChild(div);
+  });
+}
+
+buscar().catch(console.error);
+</script>
+</div>
+</body>
+</html>
+
+
+

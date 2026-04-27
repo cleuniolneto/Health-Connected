@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Termos e Privacidade</title>
+<style>
+*{box-sizing:border-box;font-family:Arial,Helvetica,sans-serif;}
+body{margin:0;min-height:100vh;background:radial-gradient(circle at 10% 20%,#00a896 0%,#0077b6 42%,#023e8a 100%);color:#fff;display:flex;align-items:center;justify-content:center;padding:20px;}
+.panel{width:min(980px,96vw);background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.28);border-radius:16px;overflow:hidden;box-shadow:0 12px 36px rgba(0,0,0,0.25);}
+.head{padding:18px 22px;background:rgba(0,0,0,0.18);border-bottom:1px solid rgba(255,255,255,0.2);}
+.head h1{margin:0;font-size:28px;}
+.head p{margin:6px 0 0;opacity:0.9;}
+.body{padding:20px 22px;display:grid;grid-template-columns:1.1fr .9fr;gap:16px;}
+.box{background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:12px;padding:14px;}
+ul{margin:0;padding-left:18px;line-height:1.55;}
+li{margin:0 0 8px;}
+.note{font-size:14px;opacity:0.9;line-height:1.45;}
+.actions{display:flex;gap:10px;margin-top:14px;}
+button{border:none;border-radius:10px;padding:12px 14px;font-weight:700;cursor:pointer;flex:1;}
+.accept{background:#22c55e;color:#fff;}
+.reject{background:#ef4444;color:#fff;}
+@media(max-width:900px){.body{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="panel">
+  <div class="head">
+    <h1 id="titulo">Termos e Privacidade</h1>
+    <p id="versao">Versao</p>
+  </div>
+  <div class="body">
+    <div class="box">
+      <h3 style="margin:0 0 10px;">Condições de uso</h3>
+      <ul id="lista"></ul>
+    </div>
+    <div class="box">
+      <h3 style="margin:0 0 10px;">Decisão do utilizador</h3>
+      <p class="note">Ao aceitar, voce autoriza o tratamento de dados conforme descrito e prossegue para completar o onboarding clinico. Ao rejeitar, o acesso e bloqueado.</p>
+      <div class="actions">
+        <button class="accept" onclick="aceitar()">Aceitar termos</button>
+        <button class="reject" onclick="rejeitar()">Rejeitar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const BASE_URL = window.location.protocol === "file:" ? "http://localhost:3000" : window.location.origin;
+const token = localStorage.getItem("token");
+if(!token) window.location.href = "login.html";
+
+async function loadTerms(){
+  const res = await fetch(`${BASE_URL}/auth/terms`);
+  const data = await res.json();
+  if(!data.ok) return alert("Nao foi possivel carregar os termos");
+  document.getElementById("titulo").innerText = data.terms.titulo;
+  document.getElementById("versao").innerText = `Versao: ${data.terms.versao}`;
+  const ul = document.getElementById("lista");
+  ul.innerHTML = "";
+  data.terms.resumo.forEach(i=>{ const li=document.createElement("li"); li.innerText=i; ul.appendChild(li); });
+}
+
+async function aceitar(){
+  const res = await fetch(`${BASE_URL}/auth/terms/accept`,{method:"POST",headers:{"Authorization":`Bearer ${token}`}});
+  const data = await res.json();
+  if(!data.ok) return alert(data.error || "Erro ao aceitar");
+  window.location.href = "ONBOARDING.html";
+}
+
+async function rejeitar(){
+  const res = await fetch(`${BASE_URL}/auth/terms/reject`,{method:"POST",headers:{"Authorization":`Bearer ${token}`}});
+  const data = await res.json();
+  if(!data.ok) return alert(data.error || "Erro ao rejeitar");
+  alert("Termos rejeitados. Seu acesso foi bloqueado.");
+  localStorage.clear();
+  window.location.href = "login.html";
+}
+
+loadTerms();
+</script>
+</body>
+</html>
+
+
+
+
+
+
+
+

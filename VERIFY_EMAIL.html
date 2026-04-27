@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Verificar Email</title>
+<style>
+body{margin:0;font-family:Arial,sans-serif;background:linear-gradient(135deg,#0077b6,#32cd32);color:#fff;display:flex;min-height:100vh;align-items:center;justify-content:center;}
+.card{width:100%;max-width:460px;background:rgba(0,0,0,0.35);padding:20px;border-radius:12px;}
+input,button{width:100%;padding:12px;border:none;border-radius:8px;margin-top:10px;}
+button{background:#1e90ff;color:#fff;font-weight:700;cursor:pointer;}
+.code-hint{margin-top:10px;padding:10px;border-radius:8px;background:rgba(255,255,255,0.15);display:none;}
+.copy-btn{background:#10b981;}
+</style>
+</head>
+<body>
+<div class="card">
+  <h2>Verificacao de Email</h2>
+  <p>Digite o email usado no cadastro e o codigo recebido.</p>
+  <input id="email" placeholder="Email">
+  <input id="code" placeholder="Codigo de 6 digitos">
+  <button onclick="confirmar()">Confirmar codigo</button>
+  <button onclick="reenviar()">Reenviar codigo</button>
+  <button class="copy-btn" onclick="copiarCodigoAtual()">Copiar ultimo codigo</button>
+  <button onclick="voltar()">Voltar ao login</button>
+  <div class="code-hint" id="codeHint"></div>
+</div>
+
+<script>
+const BASE_URL = window.location.protocol === "file:" ? "http://localhost:3000" : window.location.origin;
+let latestCode = "";
+const prefillEmail = localStorage.getItem("pendingVerificationEmail") || "";
+document.getElementById("email").value = prefillEmail;
+
+function showCode(code){
+  latestCode = code || "";
+  if(!code) return;
+  const hint = document.getElementById("codeHint");
+  hint.style.display = "block";
+  hint.innerHTML = `Codigo atual: <b style="font-size:22px;letter-spacing:4px;">${code}</b>`;
+  document.getElementById("code").value = code;
+}
+
+async function confirmar(){
+  const email = document.getElementById("email").value.trim();
+  const code = document.getElementById("code").value.trim();
+  const res = await fetch(`${BASE_URL}/auth/verify-email/confirm`,{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({ email, code })
+  });
+  const data = await res.json();
+  if(!data.ok) return alert(data.error || "Falha ao verificar");
+  alert("Email verificado. Faca login para concluir onboarding.");
+  window.location.href = "login.html";
+}
+
+async function reenviar(){
+  const email = document.getElementById("email").value.trim();
+  const res = await fetch(`${BASE_URL}/auth/verify-email/send`,{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({ email })
+  });
+  const data = await res.json();
+  if(!data.ok) return alert(data.error || "Falha ao reenviar codigo");
+  if(data.verificationCode) showCode(data.verificationCode);
+  else alert(data.message || "Codigo reenviado.");
+}
+
+async function copiarCodigoAtual(){
+  if(!latestCode) return alert("Ainda nao ha codigo exibido.");
+  await navigator.clipboard.writeText(latestCode);
+  alert("Codigo copiado.");
+}
+function voltar(){ window.location.href = "login.html"; }
+</script>
+</body>
+</html>
+
+
+
+
+
+
+
+

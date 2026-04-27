@@ -1,0 +1,169 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dados Gerais - GestÃ£o Epidemiologica</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+body{margin:0;font-family:Arial,sans-serif;background:#f3f5f8;color:#243447;}
+.top{flex-wrap:wrap;gap:8px;display:flex;justify-content:space-between;align-items:center;padding:12px 18px;background:#fff;border-bottom:1px solid #d7dde6;position:sticky;top:0;z-index:10;}
+.top button{border:0;background:#2f80ed;color:#fff;padding:9px 12px;border-radius:7px;cursor:pointer;font-weight:700;}
+.grid{padding:14px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
+.card{background:#fff;border:1px solid #dbe3ee;border-radius:8px;padding:10px;}
+.kpi{display:flex;flex-direction:column;justify-content:center;align-items:center;height:110px;}
+.kpi .v{font-size:42px;color:#2e7d32;font-weight:700;}
+.chartWrap{height:210px;}
+#map{height:280px;border-radius:8px;}
+.facility-icon{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;box-shadow:0 1px 3px rgba(0,0,0,.35);}
+.facility-icon svg{width:14px;height:14px;display:block;}
+.facility-hospital{background:#d32f2f;}
+.facility-farmacia{background:#1976d2;}
+.facility-posto{background:#2e7d32;}
+.facility-other{background:#6d6d6d;}
+.alerts{max-height:250px;overflow:auto;}
+.alert{border:1px solid #f0c7c7;background:#fff5f5;border-radius:6px;padding:8px;margin-bottom:8px;}
+@media(max-width:1100px){.grid{grid-template-columns:1fr;}}
+@media(max-width:768px){.top{position:static;}.top h2{font-size:18px;}.top > div{display:flex;flex-wrap:wrap;gap:8px;width:100%;}.top button{flex:1 1 auto;}.grid{padding:10px;}.card{padding:8px;}.kpi{height:90px;}.kpi .v{font-size:32px;}#map{height:240px;}.chartWrap{height:200px;}.card[style*="grid-column"]{grid-column:1;}}
+</style>
+</head>
+<body>
+<div class="top">
+  <h2 style="margin:0;">Dados Gerais - Painel Gestor</h2>
+  <div>
+    <button onclick="go('GESTOR_PANEL.html')">Painel Gestor</button>
+    <button onclick="window.location.href='HOME 2.html'">Home</button>
+    <button onclick="logout()">Sair</button>
+  </div>
+</div>
+
+<div class="grid">
+  <section class="card kpi"><small>Pacientes georreferenciados</small><div class="v" id="kpiPatients">0</div></section>
+  <section class="card"><h4 style="margin:0 0 4px;">Distribuicao de risco</h4><div class="chartWrap"><canvas id="riskChart"></canvas></div></section>
+  <section class="card"><h4 style="margin:0 0 4px;">Casos por localidade</h4><div class="chartWrap"><canvas id="barChart"></canvas></div></section>
+  <section class="card" style="grid-column:1 / span 2;"><h4 style="margin:0 0 8px;">Mapa epidemiologico</h4><div id="map"></div></section>
+  <section class="card"><h4 style="margin:0 0 8px;">Alertas enviados a gestores</h4><div class="alerts" id="alerts"></div></section>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+ <script>
+const BASE_URL = window.location.protocol === "file:" ? "http://localhost:3000" : window.location.origin;
+const token = localStorage.getItem("token");
+if(!token) window.location.href = "login.html";
+
+function parseJwt(token){try{return JSON.parse(atob(token.split('.')[1]));}catch(e){return null;}}
+const payload = parseJwt(token);
+if(payload?.role !== "gestor"){
+  alert("Acesso restrito a gestores.");
+  window.location.href = "HOME 2.html";
+}
+
+function go(p){ window.location.href = p; }
+function logout(){ localStorage.clear(); window.location.href = "login.html"; }
+
+const map = L.map("map").setView([-11.9,17.9],6);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{attribution:"&copy; OpenStreetMap"}).addTo(map);
+let riskChart, barChart;
+const facilityLayer = L.layerGroup().addTo(map);
+
+function drawCharts(data){
+  const high = data.filter(i=>i.casos>=10).length;
+  const mid = data.filter(i=>i.casos>=4 && i.casos<10).length;
+  const low = data.filter(i=>i.casos<4).length;
+
+  if(riskChart) riskChart.destroy();
+  riskChart = new Chart(document.getElementById("riskChart"), {
+    type: "doughnut",
+    data: { labels:["Alto","Moderado","Baixo"], datasets:[{ data:[high,mid,low], backgroundColor:["#e53935","#fbc02d","#43a047"] }] },
+    options:{ plugins:{ legend:{ position:"right" } }, maintainAspectRatio:false }
+  });
+
+  const labels = data.slice(0,10).map(i=>i.localidade);
+  const values = data.slice(0,10).map(i=>i.casos);
+  if(barChart) barChart.destroy();
+  barChart = new Chart(document.getElementById("barChart"), {
+    type: "bar",
+    data: { labels, datasets:[{ label:"Casos", data:values, backgroundColor:"#2f80ed" }] },
+    options:{ indexAxis:"y", maintainAspectRatio:false, plugins:{ legend:{ display:false } } }
+  });
+}
+
+async function loadDashboard(){
+  const res = await fetch(`${BASE_URL}/api/surtos`, { headers:{"Authorization":`Bearer ${token}`}});
+  const data = await res.json();
+  if(!data.ok) return alert(data.error || "Erro ao carregar dados gerais");
+
+  document.getElementById("kpiPatients").innerText = data.totalPatients || 0;
+  drawCharts(data.data || []);
+
+  (data.data || []).forEach(i=>{
+    const color = i.casos >= 10 ? "#e53935" : i.casos >= 4 ? "#fbc02d" : "#43a047";
+    L.circleMarker([i.lat,i.lng],{radius:Math.max(6,Math.min(22,i.casos*1.5)),color,fillColor:color,fillOpacity:0.45}).addTo(map)
+      .bindPopup(`<b>${i.localidade}</b><br>Casos: ${i.casos}`);
+  });
+}
+
+function facilityIcon(tipo){
+  const t = String(tipo || "").toLowerCase();
+  const svgHospital = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="10" y="4" width="4" height="16" fill="white"/><rect x="4" y="10" width="16" height="4" fill="white"/></svg>';
+  const svgFarmacia = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="7" width="12" height="10" rx="5" ry="5" fill="white"/></svg>';
+  const svgPosto = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a6 6 0 0 0-6 6c0 4.5 6 12 6 12s6-7.5 6-12a6 6 0 0 0-6-6zm0 8a2 2 0 1 1 0-4 2 2 0 0 1 0 4z" fill="white"/></svg>';
+  const svgOther = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6" fill="white"/></svg>';
+  if(t.includes("hospital")) return { cls:"facility-hospital", svg: svgHospital };
+  if(t.includes("farm")) return { cls:"facility-farmacia", svg: svgFarmacia };
+  if(t.includes("posto")) return { cls:"facility-posto", svg: svgPosto };
+  return { cls:"facility-other", svg: svgOther };
+}
+
+async function loadFacilitiesMap(){
+  const res = await fetch(`${BASE_URL}/api/facilities`, { headers:{"Authorization":`Bearer ${token}`}} );
+  const data = await res.json();
+  if(!data.ok) return;
+  facilityLayer.clearLayers();
+  (data.facilities || []).forEach(f=>{
+    if(f.lat === undefined || f.lng === undefined) return;
+    const iconInfo = facilityIcon(f.tipo);
+    const icon = L.divIcon({
+      className: "",
+      html: `<div class="facility-icon ${iconInfo.cls}">${iconInfo.svg}</div>`,
+      iconSize: [24,24],
+      iconAnchor: [12,12]
+    });
+    L.marker([f.lat, f.lng], { icon })
+      .addTo(facilityLayer)
+      .bindPopup(`<b>${f.nome || "Local"}</b><br>Tipo: ${f.tipo || "-"}<br>${f.endereco || ""}`);
+  });
+}
+async function loadAlerts(){
+  const res = await fetch(`${BASE_URL}/api/gestor/alerts`, { headers:{"Authorization":`Bearer ${token}`}});
+  const data = await res.json();
+  const box = document.getElementById("alerts");
+  box.innerHTML = "";
+  if(!data.ok) return box.innerHTML = "<small>Sem acesso a alertas.</small>";
+  if(!data.alerts.length) return box.innerHTML = "<small>Nenhum alerta recente.</small>";
+  data.alerts.forEach(a=>{
+    const div = document.createElement("div");
+    div.className = "alert";
+    div.innerHTML = `<b>${a.localidade}</b><br>${a.mensagem}<br><small>${new Date(a.createdAt).toLocaleString()}</small>`;
+    box.appendChild(div);
+  });
+}
+
+Promise.all([loadDashboard(), loadAlerts(), loadFacilitiesMap()]).catch(console.error);
+</script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Onboarding de Saude</title>
+<style>
+*{box-sizing:border-box;font-family:Arial,Helvetica,sans-serif;}
+body{margin:0;min-height:100vh;background:radial-gradient(circle at 10% 20%,#00a896 0%,#0077b6 42%,#023e8a 100%);color:#fff;display:flex;align-items:center;justify-content:center;padding:20px;}
+.panel{width:min(980px,96vw);background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.28);border-radius:16px;overflow:hidden;box-shadow:0 12px 36px rgba(0,0,0,0.25);}
+.head{padding:18px 22px;background:rgba(0,0,0,0.18);border-bottom:1px solid rgba(255,255,255,0.2);}
+.head h1{margin:0;font-size:28px;}
+.head p{margin:6px 0 0;opacity:0.9;}
+.form{padding:20px 22px;display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.field{display:flex;flex-direction:column;gap:6px;}
+.field.full{grid-column:1 / -1;}
+label{font-size:13px;font-weight:700;opacity:0.95;}
+input,textarea{border:none;border-radius:10px;padding:12px;background:#fff;color:#1f2937;outline:none;}
+textarea{min-height:90px;resize:vertical;}
+.actions{grid-column:1 / -1;display:flex;gap:10px;}
+button{border:none;border-radius:10px;padding:12px 14px;font-weight:700;cursor:pointer;flex:1;}
+.save{background:#22c55e;color:#fff;}
+.exit{background:#ef4444;color:#fff;}
+@media(max-width:860px){.form{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="panel">
+  <div class="head">
+    <h1>Onboarding Clinico</h1>
+    <p>Preencha os dados obrigatorios para liberar as funcionalidades da plataforma.</p>
+  </div>
+  <div class="form">
+    <div class="field"><label>Tipo sanguineo *</label><input id="tipoSanguineo" placeholder="Ex: O+"></div>
+    <div class="field"><label>Documento de identificacao *</label><input id="documento" placeholder="Numero do documento"></div>
+    <div class="field full"><label>Contacto de emergencia *</label><input id="emergencia" placeholder="Telefone e nome do contacto"></div>
+    <div class="field full"><label>Historico clinico (opcional)</label><textarea id="historico" placeholder="Cirurgias, condicoes, etc."></textarea></div>
+    <div class="field full"><label>Alergias (opcional)</label><textarea id="alergias" placeholder="Alergias medicamentosas/alimentares"></textarea></div>
+    <div class="actions">
+      <button class="save" onclick="salvar()">Concluir onboarding</button>
+      <button class="exit" onclick="logout()">Sair</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const BASE_URL = window.location.protocol === "file:" ? "http://localhost:3000" : window.location.origin;
+const token = localStorage.getItem("token");
+if(!token) window.location.href = "login.html";
+
+(async function(){
+  const r = await fetch(`${BASE_URL}/auth/me`, { headers:{"Authorization":`Bearer ${token}`}});
+  const d = await r.json();
+  if(!d.ok) return window.location.href="login.html";
+  if(!d.user.emailVerificado) return window.location.href="VERIFY_EMAIL.html";
+  if(d.user.termosStatus !== "aceite") return window.location.href="TERMS.html";
+  if(d.user.onboardingCompleto) return window.location.href="HOME 2.html";
+})();
+
+async function salvar(){
+  const body = {
+    tipoSanguineo: document.getElementById("tipoSanguineo").value.trim(),
+    documentoIdentificacao: document.getElementById("documento").value.trim(),
+    contactoEmergencia: document.getElementById("emergencia").value.trim(),
+    historicoClinico: document.getElementById("historico").value.trim(),
+    alergias: document.getElementById("alergias").value.trim()
+  };
+
+  const res = await fetch(`${BASE_URL}/auth/onboarding`, {
+    method:"POST",
+    headers:{"Authorization":`Bearer ${token}`,"Content-Type":"application/json"},
+    body: JSON.stringify(body)
+  });
+  const data = await res.json();
+  if(!data.ok) return alert(data.error || "Erro ao concluir onboarding");
+  alert("Onboarding concluido com sucesso.");
+  window.location.href = "HOME 2.html";
+}
+function logout(){ localStorage.clear(); window.location.href = "login.html"; }
+</script>
+</body>
+</html>
+
+
+
+
+
+
+
+

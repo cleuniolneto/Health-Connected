@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Consulta - Dr.Click</title>
+<style>
+body { margin: 0; font-family: Arial, sans-serif; background: linear-gradient(135deg, #32cd32, #0077b6); color: #fff; }
+.menu-btn { position: absolute; top: 20px; right: 20px; cursor: pointer; z-index: 1000; }
+.menu-btn div { width: 30px; height: 4px; background: white; margin: 6px 0; border-radius: 5px; }
+.side-menu { position: fixed; top: 0; right: 0; width: 250px; height: 100%; background: rgba(0, 0, 0, 0.95); padding: 20px; transform: translateX(100%); transition: transform 0.3s ease-in-out; z-index: 999; }
+.side-menu.open { transform: translateX(0); }
+.side-menu h3 { margin-bottom: 20px; border-bottom: 1px solid #7CFC00; padding-bottom: 10px; color: #7CFC00; }
+.side-menu button { display: block; width: 100%; margin: 10px 0; padding: 12px; border: none; border-radius: 8px; background: #1E90FF; color: white; font-weight: bold; cursor: pointer; }
+.container { max-width: 820px; margin: 40px auto; padding: 25px; background: rgba(255,255,255,0.15); border-radius: 12px; }
+select, button, input { width: 100%; padding: 12px; border: none; border-radius: 8px; font-size: 15px; outline: none; margin-top: 10px; }
+button { background: #0077b6; color: #fff; cursor: pointer; }
+.option-box { background: rgba(0,0,0,0.25); padding: 12px; border-radius: 8px; margin-top: 12px; cursor: pointer; }
+.card{background:rgba(0,0,0,0.18);padding:10px;border-radius:8px;margin-top:10px;}
+</style>
+</head>
+<body>
+<div class="menu-btn" onclick="toggleMenu()"><div></div><div></div><div></div></div>
+<div class="side-menu" id="sideMenu">
+  <h3>Menu</h3>
+  <button onclick="go('HOME 2.html')">Home</button>
+  <button onclick="go('PERFIL.html')">Perfil</button>
+  <button onclick="go('CONTACTAR.html')">Contactar</button>
+  <button onclick="logout()">Sair</button>
+</div>
+
+<div class="container">
+  <h2 style="text-align:center;">Agendar Consulta</h2>
+  <label>Especialidade:</label>
+  <select id="especialidade"><option value="">Escolher...</option><option>Pediatria</option><option>Cardiologia</option><option>Clinica Geral</option><option>Dentista</option><option>Psicologia</option><option>Oftalmologia</option></select>
+  <input id="horario" placeholder="Horario desejado (ex: 2026-03-09 10:30)">
+  <h3 style="margin-top:16px;">Triagem rapida (pre-consulta)</h3>
+   <textarea id="triagemSintomas" placeholder="Descreva seus sintomas"></textarea>
+     <div class="row" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+         <input id="triagemDuracao" placeholder="Duracao (ex: 3 dias)">
+          <select id="triagemIntensidade"><option value="">Intensidade</option><option value="baixa">Baixa</option><option value="media">Media</option><option value="alta">Alta</option></select>
+         </div>
+            <div class="row" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                 <input id="triagemTemperatura" placeholder="Temperatura (ex: 38.5)">
+                    <input id="triagemIdade" placeholder="Idade">
+  </div>
+   <button onclick="carregarLocais()">Encontrar locais proximos</button>
+  <div id="locais"></div>
+
+  <h3 style="margin-top:18px;">Minhas consultas</h3>
+  <div id="minhas"></div>
+</div>
+
+<script>
+const BASE_URL = window.location.protocol === "file:" ? "http://localhost:3000" : window.location.origin;
+const token = localStorage.getItem("token");
+if(!token) window.location.href = "login.html";
+let selectedLocalId = null;
+
+async function checkAccess(){
+  const meRes = await fetch(`${BASE_URL}/auth/me`, { headers: { "Authorization": `Bearer ${token}` } });
+  const me = await meRes.json();
+  if(!me.ok) { localStorage.clear(); return window.location.href="login.html"; }
+  if(!me.user.emailVerificado) return window.location.href="VERIFY_EMAIL.html";
+  if(me.user.termosStatus !== "aceite") return window.location.href="TERMS.html";
+  if(!me.user.onboardingCompleto) return window.location.href="ONBOARDING.html";
+}
+
+async function carregarLocais(){
+  const esp = document.getElementById("especialidade").value;
+  if(!esp) return alert("Selecione uma especialidade.");
+
+  const meRes = await fetch(`${BASE_URL}/auth/me`, { headers: { "Authorization": `Bearer ${token}` } });
+  const meData = await meRes.json();
+  const lat = meData.user?.geo?.lat;
+  const lng = meData.user?.geo?.lng;
+  if(lat === null || lat === undefined || lng === null || lng === undefined){
+    return alert("Atualize sua localizacao no Perfil para encontrar os locais proximos.");
+  }
+
+  const res = await fetch(`${BASE_URL}/api/facilities/near?lat=${lat}&lng=${lng}&type=hospital`, { headers: { "Authorization": `Bearer ${token}` } });
+  const data = await res.json();
+  if(!data.ok) return alert(data.error || "Erro ao buscar locais");
+
+  const box = document.getElementById("locais");
+  box.innerHTML = "<br><strong>Locais proximos:</strong>";
+  data.facilities.forEach((f) => {
+    const div = document.createElement("div");
+    div.className = "option-box";
+    div.innerHTML = `<b>${f.nome}</b><br><small>${f.endereco || "Sem endereco"} | ${f.distanciaKm.toFixed(2)} km</small>`;
+    div.onclick = () => { selectedLocalId = f._id; agendarConsulta(esp, f.nome); };
+    box.appendChild(div);
+  });
+}
+
+async function agendarConsulta(especialidade, nomeLocal){
+  const horario = document.getElementById("horario").value;
+  const res = await fetch(`${BASE_URL}/api/consultas`, {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ especialidade, localId: selectedLocalId, localNome: nomeLocal, horario, triagem: { sintomas: document.getElementById("triagemSintomas").value, duracao: document.getElementById("triagemDuracao").value, intensidade: document.getElementById("triagemIntensidade").value, temperatura: document.getElementById("triagemTemperatura").value, idade: document.getElementById("triagemIdade").value } })
+  });
+  const data = await res.json();
+  if(!data.ok) return alert(data.error || "Erro ao criar consulta");
+  alert("Consulta criada. Ela aparece nas pendencias da especialidade.");
+  loadMinhasConsultas();
+}
+
+async function toggleConsent(id, allow){
+  const res = await fetch(`${BASE_URL}/api/consultas/${id}/consent`, {
+    method:"POST",
+    headers:{"Authorization":`Bearer ${token}`,"Content-Type":"application/json"},
+    body: JSON.stringify({ allow })
+  });
+  const data = await res.json();
+  if(!data.ok) return alert(data.error || "Erro ao atualizar consentimento");
+  loadMinhasConsultas();
+}
+
+async function loadMinhasConsultas(){
+  const res = await fetch(`${BASE_URL}/api/consultas/minhas`, { headers:{"Authorization":`Bearer ${token}`}});
+  const data = await res.json();
+  const box = document.getElementById("minhas");
+  box.innerHTML = "";
+  if(!data.ok) return box.innerHTML = "<small>Sem dados.</small>";
+  if(!data.consultas.length) return box.innerHTML = "<small>Nenhuma consulta ainda.</small>";
+
+  data.consultas.forEach(c=>{
+    const div = document.createElement("div");
+    div.className = "card";
+    div.innerHTML = `<b>${c.especialidade}</b> | ${c.status}<br><small>${c.localNome || "-"} | ${c.horario || "-"}</small><br><small>Consentimento dados: ${c.consentimentoDados ? "Ativo" : "Desativado"}</small>`;
+
+    if(c.status === "pendente"){
+      const a = document.createElement("button");
+      a.innerText = "Permitir dados para esta consulta";
+      a.onclick = ()=>toggleConsent(c._id, true);
+      const b = document.createElement("button");
+      b.innerText = "Retirar permissao";
+      b.onclick = ()=>toggleConsent(c._id, false);
+      div.appendChild(a); div.appendChild(b);
+    }
+
+    const reg = document.createElement("button");
+    reg.innerText = "Baixar registro PDF";
+    reg.onclick = ()=>window.open(`${BASE_URL}/api/consultas/${c._id}/registro.pdf`,"_blank");
+    div.appendChild(reg);
+
+    if(c.receitaPdfPath){
+      const rec = document.createElement("button");
+      rec.innerText = "Baixar receita PDF";
+      rec.onclick = ()=>window.open(`${BASE_URL}/api/consultas/${c._id}/receita.pdf`,"_blank");
+      div.appendChild(rec);
+    }
+
+    box.appendChild(div);
+  });
+}
+
+function toggleMenu(){ document.getElementById("sideMenu").classList.toggle("open"); }
+function go(page){ window.location.href = page; }
+function logout(){ localStorage.clear(); window.location.href = "login.html"; }
+
+checkAccess().then(loadMinhasConsultas).catch(console.error);
+</script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+

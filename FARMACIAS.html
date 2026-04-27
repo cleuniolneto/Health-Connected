@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Farmacias</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,Helvetica,sans-serif;}
+body{background:linear-gradient(135deg,#0ea5e9,#16a34a);color:#fff;min-height:100vh;}
+.wrap{width:min(1100px,94vw);margin:0 auto;padding:26px 18px 40px;}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;gap:10px;}
+.header h2{font-size:26px;letter-spacing:0.4px;}
+.header button{padding:10px 16px;border:none;border-radius:10px;background:#0f172a;color:#fff;font-weight:700;cursor:pointer;}
+.panel{background:rgba(15,23,42,0.45);padding:16px;border-radius:14px;margin-bottom:18px;border:1px solid rgba(255,255,255,0.18);}
+.panel label{display:block;font-weight:700;margin:10px 0 6px;}
+.panel input,.panel select{width:100%;padding:10px;border:none;border-radius:10px;}
+.panel .row{display:flex;gap:12px;flex-wrap:wrap;}
+.panel .row > div{flex:1;min-width:180px;}
+.panel .primary{margin-top:12px;width:100%;padding:12px;border-radius:10px;background:#1d4ed8;color:#fff;font-weight:700;}
+.list{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;}
+.card{background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.25);border-radius:14px;padding:14px;box-shadow:0 8px 20px rgba(0,0,0,0.18);}
+.card h3{margin-bottom:6px;color:#eaffea;}
+.badge{display:inline-block;padding:4px 10px;border-radius:999px;background:rgba(0,0,0,0.35);margin-right:6px;font-size:12px;}
+.farmaco{margin-top:8px;padding:8px;border-radius:10px;background:rgba(0,0,0,0.25);}
+.small{font-size:12px;opacity:0.9;}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="header">
+  <h2>Farmacias e Farmacos</h2>
+  <button onclick="window.location.href='HOME 2.html'">Voltar</button>
+</div>
+
+<div class="panel">
+  <div class="row">
+    <div>
+      <label>Farmaco</label>
+      <input id="farmaco" placeholder="Ex: Paracetamol">
+    </div>
+    <div>
+      <label>Entrega ao domicilio</label>
+      <select id="entrega">
+        <option value="">Todas</option>
+        <option value="sim">Sim</option>
+        <option value="nao">Nao</option>
+      </select>
+    </div>
+  </div>
+  <div class="row">
+    <div>
+      <label>Usar minha localizacao</label>
+      <button style="width:100%;margin-top:6px;" onclick="usarGeo()">Ativar localizacao</button>
+      <div class="small" id="geoInfo">Sem localizacao</div>
+    </div>
+    <div>
+      <label>Pesquisa por nome da farmacia</label>
+      <input id="q" placeholder="Nome da farmacia">
+    </div>
+  </div>
+  <button class="primary" onclick="buscar()">Pesquisar</button>
+</div>
+
+<div class="list" id="lista"></div>
+
+<script>
+const BASE_URL = window.location.protocol === "file:" ? "http://localhost:3000" : window.location.origin;
+const token = localStorage.getItem("token");
+if(!token) window.location.href = "login.html";
+let geo = { lat: null, lng: null };
+
+function usarGeo(){
+  if(!navigator.geolocation){ return alert("Geolocalizacao nao suportada."); }
+  navigator.geolocation.getCurrentPosition((pos)=>{
+    geo.lat = pos.coords.latitude; geo.lng = pos.coords.longitude;
+    document.getElementById("geoInfo").innerText = `Localizacao ativa (${geo.lat.toFixed(4)}, ${geo.lng.toFixed(4)})`;
+  }, ()=>alert("Nao foi possivel obter localizacao"));
+}
+
+async function buscar(){
+  const farmaco = document.getElementById("farmaco").value.trim();
+  const entrega = document.getElementById("entrega").value;
+  const q = document.getElementById("q").value.trim();
+  let url = `${BASE_URL}/api/locais/search?tipo=farmacia&farmaco=${encodeURIComponent(farmaco)}&q=${encodeURIComponent(q)}`;
+  if(geo.lat !== null && geo.lng !== null){ url += `&lat=${geo.lat}&lng=${geo.lng}`; }
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` }});
+  const data = await res.json();
+  const box = document.getElementById("lista");
+  box.innerHTML = "";
+  if(!data.ok) return box.innerHTML = `<div class='card'>${data.error || 'Falha ao carregar'}</div>`;
+  if(!data.facilities.length) return box.innerHTML = "<div class='card'>Nenhuma farmacia encontrada.</div>";
+
+  data.facilities.forEach(f=>{
+    const farmacos = (f.farmacos||[]).filter(m=> !farmaco || String(m.nome||'').toLowerCase().includes(farmaco.toLowerCase()));
+    const filtered = entrega ? farmacos.filter(m=> entrega==='sim' ? m.entregaDomicilio : !m.entregaDomicilio) : farmacos;
+    const div = document.createElement("div");
+    div.className = "card";
+    div.innerHTML = `<h3>${f.nome}</h3><div class='small'>${f.endereco || ''}</div><div class='small'>Contacto: ${f.contacto || 'N/D'}</div>`;
+    if(f.distanciaKm !== undefined){
+      div.innerHTML += `<div class='badge'>${f.distanciaKm.toFixed(2)} km</div>`;
+    }
+    if(!filtered.length){
+      div.innerHTML += `<div class='farmaco'>Sem farmacos para este filtro</div>`;
+    } else {
+      filtered.forEach(m=>{
+        div.innerHTML += `<div class='farmaco'><b>${m.nome}</b> - ${m.preco || 0} Kz<br><span class='small'>${m.disponibilidade || 'disponivel'} | Entrega: ${m.entregaDomicilio ? 'Sim' : 'Nao'}</span></div>`;
+      });
+    }
+    box.appendChild(div);
+  });
+}
+
+buscar().catch(console.error);
+</script>
+</div>
+</body>
+</html>
+
+

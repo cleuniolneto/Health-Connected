@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel Profissional</title>
+<style>
+*{box-sizing:border-box;font-family:Arial,Helvetica,sans-serif;}
+body{margin:0;min-height:100vh;background:radial-gradient(circle at 10% 20%,#00a896 0%,#0077b6 42%,#023e8a 100%);color:#fff;padding:20px;}
+.top{width:min(1020px,96vw);margin:0 auto 12px;display:flex;justify-content:space-between;align-items:center;}
+.top h1{margin:0;font-size:28px;}
+.top button{border:none;border-radius:10px;padding:10px 12px;font-weight:700;cursor:pointer;color:#fff;background:#1e90ff;}
+.wrap{width:min(1020px,96vw);margin:0 auto;}
+.section{background:rgba(255,255,255,0.13);border:1px solid rgba(255,255,255,0.25);border-radius:14px;padding:12px;box-shadow:0 8px 24px rgba(0,0,0,0.2);}
+.card{background:rgba(255,255,255,0.14);border:1px solid rgba(255,255,255,0.22);border-radius:10px;padding:10px;margin-bottom:10px;}
+textarea{width:100%;padding:10px;border:none;border-radius:8px;min-height:90px;resize:vertical;margin-top:8px;}
+button.action{width:100%;padding:10px;border:none;border-radius:8px;background:#1e90ff;color:#fff;font-weight:700;cursor:pointer;margin-top:6px;}
+small{opacity:0.9;}
+</style>
+</head>
+<body>
+<div class="top">
+  <h1>Painel Profissional</h1>
+  <div>
+    <button onclick="goHome()">Home</button>
+    <button onclick="logout()">Sair</button>
+  </div>
+</div>
+<div class="wrap">
+  <div class="section">
+    <h3 id="titulo" style="margin:0 0 10px;">Pendencias</h3>
+    <div id="lista"></div>
+  </div>
+</div>
+
+
+<script>
+const BASE_URL = window.location.protocol === "file:" ? "http://localhost:3000" : window.location.origin;
+const token = localStorage.getItem("token");
+if(!token) window.location.href="login.html";
+function parseJwt(token){try{return JSON.parse(atob(token.split('.')[1]));}catch(e){return null;}}
+if(parseJwt(token)?.role !== "profissional") { alert("Acesso restrito a profissionais."); window.location.href="HOME 2.html"; }
+
+async function loadPendencias(){
+  const res = await fetch(`${BASE_URL}/api/consultas/pendentes/profissional`,{headers:{"Authorization":`Bearer ${token}`}});
+  const data = await res.json();
+  if(!data.ok) return alert(data.error || "Erro ao carregar pendencias");
+  document.getElementById("titulo").innerText = `Pendencias da especialidade: ${data.especialidade}`;
+
+  const lista = document.getElementById("lista");
+  lista.innerHTML = "";
+  if(!data.consultas.length){ lista.innerHTML = "<p>Sem pendencias no momento.</p>"; return; }
+
+  data.consultas.forEach(c=>{
+    const div = document.createElement("div");
+    div.className = "card";
+    div.innerHTML = `<b>${c.paciente?.nome || c.aliasPaciente}</b><br><small>Especialidade: ${c.especialidade} | Local: ${c.localNome || "-"} | Horario: ${c.horario || "-"}</small><br><small>Consentimento sensivel: ${c.consentimentoDados ? "Concedido" : "Negado"}</small>`;
+
+    if(c.consentimentoDados){
+      const txt = document.createElement("textarea");
+      txt.placeholder = "Escreva a receita para gerar PDF...";
+      txt.id = `rx-${c._id}`;
+      div.appendChild(txt);
+
+      const b1 = document.createElement("button"); b1.className = "action";
+      b1.innerText = "Gerar receita PDF";
+      b1.onclick = ()=>gerarReceita(c._id, txt.id);
+      div.appendChild(b1);
+
+      const b2 = document.createElement("button"); b2.className = "action";
+      b2.innerText = "Enviar receita ao paciente";
+      b2.onclick = ()=>enviarReceita(c._id);
+      div.appendChild(b2);
+    }
+
+    const b3 = document.createElement("button"); b3.className = "action";
+    b3.innerText = "Marcar como atendida";
+    b3.onclick = ()=>atender(c._id);
+    div.appendChild(b3);
+
+    lista.appendChild(div);
+  });
+}
+
+async function gerarReceita(id, txtId){
+  const conteudo = document.getElementById(txtId).value.trim();
+  const res = await fetch(`${BASE_URL}/api/consultas/${id}/receita`, { method:"POST", headers:{"Authorization":`Bearer ${token}`,"Content-Type":"application/json"}, body: JSON.stringify({ conteudo }) });
+  const data = await res.json();
+  if(!data.ok) return alert(data.error || "Erro ao gerar receita");
+  alert("Receita PDF gerada.");
+}
+
+async function enviarReceita(id){
+  const res = await fetch(`${BASE_URL}/api/consultas/${id}/receita/enviar`, { method:"POST", headers:{"Authorization":`Bearer ${token}`}});
+  const data = await res.json();
+  if(!data.ok) return alert(data.error || "Erro ao enviar receita");
+  alert("Receita enviada ao paciente.");
+}
+
+async function atender(id){
+  const obs = prompt("Observacao do atendimento (opcional):", "") || "";
+  const res = await fetch(`${BASE_URL}/api/consultas/${id}/atender`, { method:"POST", headers:{"Authorization":`Bearer ${token}`,"Content-Type":"application/json"}, body: JSON.stringify({ observacao: obs }) });
+  const data = await res.json();
+  if(!data.ok) return alert(data.error || "Nao foi possivel concluir atendimento");
+  alert("Consulta removida da lista de pendencias.");
+  loadPendencias();
+}
+
+function goHome(){ window.location.href = "HOME 2.html"; }
+function logout(){ localStorage.clear(); window.location.href = "login.html"; }
+loadPendencias().catch(console.error);
+</script>
+</body>
+</html>
+
+
+
+
+
+
+
+

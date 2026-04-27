@@ -1,0 +1,437 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel do Gestor</title>
+<style>
+*{box-sizing:border-box;font-family:Arial,Helvetica,sans-serif;}
+body{margin:0;min-height:100vh;background:radial-gradient(circle at 10% 20%,#00a896 0%,#0077b6 42%,#023e8a 100%);color:#fff;padding:20px;}
+.top{width:min(1180px,96vw);margin:0 auto 12px;display:flex;justify-content:space-between;align-items:center;}
+.top h1{margin:0;font-size:28px;}
+.top .btns{display:flex;gap:8px;}
+.top button{border:none;border-radius:10px;padding:10px 12px;font-weight:700;cursor:pointer;color:#fff;background:#1e90ff;}
+.wrap{width:min(1180px,96vw);margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.card{background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.28);border-radius:14px;padding:12px;box-shadow:0 8px 24px rgba(0,0,0,0.18);}
+.card h3{margin:0 0 8px;}
+table{width:100%;border-collapse:collapse;font-size:13px;} th,td{padding:8px;border-bottom:1px solid rgba(255,255,255,0.2);text-align:left;}
+input,select,textarea,button{width:100%;padding:10px;border:none;border-radius:8px;margin-top:8px;}
+button{background:#1e90ff;color:#fff;cursor:pointer;font-weight:700;}
+button:hover{background:#0ea5e9;}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.actions{display:flex;gap:6px;}
+.actions button{margin:0;padding:8px;}
+.full{grid-column:1/-1;}
+.helper{font-size:12px;opacity:0.9;}
+@media(max-width:980px){.wrap{grid-template-columns:1fr;}.top{flex-direction:column;align-items:flex-start;gap:10px;}}
+</style>
+</head>
+<body>
+<div class="top">
+  <h1>Painel do Gestor</h1>
+  <div class="btns">
+    <button onclick="window.location.href='DADOS_GERAIS.html'">Dados Gerais</button>
+    <button onclick="window.location.href='HOME 2.html'">Home</button>
+    <button onclick="window.location.href='Admin.html'">Administracao</button>
+    <button onclick="logout()">Sair</button>
+  </div>
+</div>
+
+<div class="wrap">
+  <section class="card">
+    <h3>Utilizadores</h3>
+    <table><thead><tr><th>Nome</th><th>Email</th><th>Role</th><th>Status</th><th>Acoes</th></tr></thead><tbody id="usersBody"></tbody></table>
+  </section>
+
+  <section class="card">
+    <h3>Consultas Pendentes (Global)</h3>
+    <table><thead><tr><th>Paciente</th><th>Especialidade</th><th>Local</th></tr></thead><tbody id="pendBody"></tbody></table>
+  </section>
+
+  <section class="card">
+    <h3>Adicionar Hospital/Farmacia</h3>
+    <p class="helper">Use coordenadas reais para recomendacao por proximidade funcionar melhor.</p>
+    <input id="nome" placeholder="Nome do local">
+    <div class="row">
+      <select id="tipo"><option value="hospital">Hospital</option><option value="farmacia">Farmacia</option><option value="posto">Posto Medico</option></select>
+      <input id="endereco" placeholder="Endereco">
+    </div>
+    <div class="row">
+      <input id="contacto" placeholder="Contacto/Telefone">
+      <input id="lat" placeholder="Latitude" type="number" step="any">
+    </div>
+    <div class="row">
+      <input id="lng" placeholder="Longitude" type="number" step="any">
+      <div></div>
+    </div>
+    <textarea id="especialidades" placeholder="Especialidades separadas por virgula (opcional)"></textarea>
+    <textarea id="medicos" placeholder="Medicos (um por linha): Nome - Especialidade"></textarea>
+    <button onclick="addFacility()">Adicionar Local</button>
+  </section>
+
+  <section class="card">
+    <h3>Locais cadastrados</h3>
+    <table><thead><tr><th>Nome</th><th>Tipo</th><th>Endereco</th></tr></thead><tbody id="facBody"></tbody></table>
+  </section>
+
+  <section class="card">
+    <h3>Medicamentos por farmacia</h3>
+    <select id="farmaciaSelect"></select>
+    <div class="row">
+      <input id="farmacoNome" placeholder="Nome do farmaco">
+      <input id="farmacoPreco" placeholder="Preco (Kz)" type="number" step="any">
+    </div>
+    <div class="row">
+      <select id="farmacoDisp"><option value="disponivel">Disponivel</option><option value="esgotado">Esgotado</option><option value="encomenda">Encomenda</option></select>
+      <select id="farmacoEntrega"><option value="sim">Entrega ao domicilio</option><option value="nao">Sem entrega</option></select>
+    </div>
+    <button onclick="addFarmaco()">Adicionar farmaco</button>
+    <div class="helper">CSV de farmacos (nome,preco,disponibilidade,entrega[sim/nao])</div>
+    <input id="farmacoFile" type="file" accept=".csv,.txt">
+    <textarea id="farmacoCsv" placeholder="Paracetamol,450,disponivel,sim\nVitamina C,800,disponivel,nao"></textarea>
+    <button onclick="importFarmacos()">Importar CSV</button>
+    <table><thead><tr><th>Farmaco</th><th>Preco</th><th>Status</th><th>Entrega</th><th>Acoes</th></tr></thead><tbody id="farmacoBody"></tbody></table>
+  </section>
+
+  <section class="card">
+    <h3>Editar local</h3>
+    <select id="editSelect"></select>
+    <div class="row">
+      <input id="editNome" placeholder="Nome">
+      <select id="editTipo"><option value="hospital">Hospital</option><option value="farmacia">Farmacia</option><option value="posto">Posto Medico</option></select>
+    </div>
+    <div class="row">
+      <input id="editEndereco" placeholder="Endereco">
+      <input id="editContacto" placeholder="Contacto/Telefone">
+    </div>
+    <div class="row">
+      <input id="editLat" placeholder="Latitude" type="number" step="any">
+      <input id="editLng" placeholder="Longitude" type="number" step="any">
+    </div>
+    <textarea id="editEspecialidades" placeholder="Especialidades separadas por virgula"></textarea>
+    <textarea id="editMedicos" placeholder="Medicos (um por linha): Nome - Especialidade"></textarea>
+    <div class="row">
+      <button onclick="saveFacilityEdit()">Salvar alteracoes</button>
+      <button onclick="deactivateFacility()">Desativar local</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <h3>Historico de alteracoes</h3>
+    <button onclick="downloadAudits()">Baixar CSV</button> <button onclick="downloadAuditsPdf()">Baixar PDF</button>
+    <table><thead><tr><th>Data</th><th>Acao</th><th>Local</th><th>Quem</th><th>Detalhes</th></tr></thead><tbody id="auditBody"></tbody></table>
+  </section>
+
+  <section class="card full">
+    <h3>Verificacao de Carteiras (pendentes)</h3>
+    <table><thead><tr><th>Nome</th><th>Email</th><th>Especialidade</th><th>Carteira</th><th>Acoes</th></tr></thead><tbody id="proBody"></tbody></table>
+  </section>
+</div>
+
+<div id="diffModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);align-items:center;justify-content:center;z-index:9999;">
+  <div style="background:#fff;color:#111;max-width:900px;width:92vw;max-height:80vh;overflow:auto;border-radius:12px;padding:16px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+      <h3 style="margin:0;">Detalhes da alteracao</h3>
+      <button onclick="closeDiff()" style="width:auto;">Fechar</button>
+    </div>
+    <pre id="diffContent" style="white-space:pre-wrap;margin-top:12px;"></pre>
+  </div>
+</div>
+
+<script>
+const BASE_URL = window.location.protocol === "file:" ? "http://localhost:3000" : window.location.origin;
+const token = localStorage.getItem("token");
+if(!token) window.location.href="login.html";
+function parseJwt(token){try{return JSON.parse(atob(token.split(".")[1]));}catch(e){return null;}}
+if(parseJwt(token)?.role !== "gestor") { alert("Acesso restrito a gestores."); window.location.href="HOME 2.html"; }
+const currentUserId = (parseJwt(token)?.id || parseJwt(token)?._id || "").toString();
+
+let farmaciasCache = [];
+let facilitiesCache = [];
+
+async function loadUsers(){
+  const res = await fetch(`${BASE_URL}/auth/usuarios`,{headers:{"Authorization":`Bearer ${token}`}});
+  const data = await res.json(); if(!data.ok) return;
+  const tbody = document.getElementById("usersBody"); tbody.innerHTML = "";
+  data.users.forEach(u=>{ const tr=document.createElement("tr"); const isSelf = String(u._id) === currentUserId; const action = u.role === "gestor" ? (isSelf ? "-" : `<button onclick="demoteGestor('${u._id}')">Rebaixar</button>`) : `<button onclick="promoteGestor('${u._id}')">Tornar gestor</button>`; tr.innerHTML=`<td>${u.nome}</td><td>${u.email}</td><td>${u.role}</td><td>${u.profissionalStatus||"-"}</td><td>${action}</td>`; tbody.appendChild(tr); });
+}
+
+
+async function promoteGestor(id){
+  if(!confirm("Promover este usuario a gestor?")) return;
+  const res = await fetch(`${BASE_URL}/api/gestor/usuarios/${id}/promover`, { method:"POST", headers:{"Authorization":`Bearer ${token}`} });
+  const data = await res.json();
+  if(!data.ok) return alert(data.error || "Falha ao promover");
+  alert(data.message || "Usuario promovido");
+  await loadUsers();
+}
+
+async function demoteGestor(id){
+  if(!confirm("Rebaixar este gestor para paciente?")) return;
+  const res = await fetch(`${BASE_URL}/api/gestor/usuarios/${id}/rebaixar`, { method:"POST", headers:{"Authorization":`Bearer ${token}`} });
+  const data = await res.json();
+  if(!data.ok) return alert(data.error || "Falha ao rebaixar");
+  alert(data.message || "Gestor rebaixado");
+  await loadUsers();
+}
+async function loadPendentes(){
+  const res = await fetch(`${BASE_URL}/api/consultas/pendentes/gestor`,{headers:{"Authorization":`Bearer ${token}`}});
+  const data = await res.json();
+  const tbody = document.getElementById("pendBody"); tbody.innerHTML = "";
+  (data.consultas||[]).forEach(c=>{ const tr=document.createElement("tr"); tr.innerHTML=`<td>${c.pacienteId?.nome||"-"}</td><td>${c.especialidade}</td><td>${c.localNome||"-"}</td>`; tbody.appendChild(tr); });
+}
+
+async function loadFacilities(){
+  const res = await fetch(`${BASE_URL}/api/facilities`,{headers:{"Authorization":`Bearer ${token}`}});
+  const data = await res.json();
+  const tbody = document.getElementById("facBody"); tbody.innerHTML = "";
+  facilitiesCache = data.facilities || [];
+  facilitiesCache.forEach(f=>{ const tr=document.createElement("tr"); tr.innerHTML=`<td>${f.nome}</td><td>${f.tipo}</td><td>${f.endereco||""}</td>`; tbody.appendChild(tr); });
+
+  farmaciasCache = facilitiesCache.filter(f=>f.tipo==="farmacia");
+  const sel = document.getElementById("farmaciaSelect");
+  if(sel){
+    sel.innerHTML = "";
+    farmaciasCache.forEach(f=>{ const opt=document.createElement("option"); opt.value=f._id; opt.innerText=f.nome; sel.appendChild(opt); });
+    loadFarmacos();
+  }
+
+  const editSel = document.getElementById("editSelect");
+  if(editSel){
+    editSel.innerHTML = "";
+    facilitiesCache.forEach(f=>{ const opt=document.createElement("option"); opt.value=f._id; opt.innerText=f.nome; editSel.appendChild(opt); });
+    fillEditForm();
+  }
+}
+
+async function loadFarmacos(){
+  const sel = document.getElementById("farmaciaSelect");
+  const tbody = document.getElementById("farmacoBody");
+  if(!sel || !tbody) return;
+  const current = farmaciasCache.find(f=>f._id===sel.value);
+  tbody.innerHTML = "";
+  (current?.farmacos||[]).forEach((m, idx)=>{
+    const tr=document.createElement("tr");
+    tr.innerHTML = `<td>${m.nome}</td><td>${m.preco||0}</td><td>${m.disponibilidade||"disponivel"}</td><td>${m.entregaDomicilio?"Sim":"Nao"}</td><td class='actions'><button onclick="removeFarmaco(${idx})">Remover</button></td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function addFarmaco(){
+  const sel = document.getElementById("farmaciaSelect");
+  const current = farmaciasCache.find(f=>f._id===sel.value);
+  if(!current) return;
+  const nome = document.getElementById("farmacoNome").value.trim();
+  const preco = Number(document.getElementById("farmacoPreco").value || 0);
+  const disponibilidade = document.getElementById("farmacoDisp").value;
+  const entregaDomicilio = document.getElementById("farmacoEntrega").value === "sim";
+  if(!nome) return alert("Informe o nome do farmaco");
+  current.farmacos = current.farmacos || [];
+  current.farmacos.push({ nome, preco, disponibilidade, entregaDomicilio });
+  saveFarmacos(current._id, current.farmacos);
+}
+
+function removeFarmaco(idx){
+  const sel = document.getElementById("farmaciaSelect");
+  const current = farmaciasCache.find(f=>f._id===sel.value);
+  if(!current) return;
+  current.farmacos.splice(idx, 1);
+  saveFarmacos(current._id, current.farmacos);
+}
+
+async function saveFarmacos(id, farmacos){
+  const res = await fetch(`${BASE_URL}/api/facilities/${id}/farmacos`, {
+    method:"PUT",
+    headers:{"Authorization":`Bearer ${token}`,"Content-Type":"application/json"},
+    body: JSON.stringify({ farmacos })
+  });
+  const data = await res.json(); if(!data.ok) return alert(data.error || "Erro ao salvar farmacos");
+  await loadFacilities();
+}
+
+function importFarmacos(){
+  const csv = document.getElementById("farmacoCsv").value.trim();
+  if(!csv) return alert("Cole o CSV dos farmacos");
+  const sel = document.getElementById("farmaciaSelect");
+  const current = farmaciasCache.find(f=>f._id===sel.value);
+  if(!current) return;
+  const lines = csv.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+  const farmacos = lines.map(line=>{
+    const parts = line.split(",");
+    const nome = (parts[0]||"").trim();
+    const preco = Number((parts[1]||"0").trim());
+    const disponibilidade = (parts[2]||"disponivel").trim().toLowerCase();
+    const entrega = (parts[3]||"nao").trim().toLowerCase() === "sim";
+    return nome ? { nome, preco, disponibilidade, entregaDomicilio: entrega } : null;
+  }).filter(Boolean);
+  if(!farmacos.length) return alert("CSV vazio");
+  current.farmacos = farmacos;
+  saveFarmacos(current._id, current.farmacos);
+}
+
+async function loadProfissionaisPendentes(){
+  const res = await fetch(`${BASE_URL}/api/gestor/profissionais-pendentes`,{headers:{"Authorization":`Bearer ${token}`}});
+  const data = await res.json();
+  const tbody = document.getElementById("proBody"); tbody.innerHTML = "";
+  (data.profissionais||[]).forEach(p=>{
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td>${p.nome}</td><td>${p.email}</td><td>${p.especialidade||"-"}</td><td>${p.numeroCarteira||"-"}</td><td class='actions'><button onclick="aprovar('${p._id}')">Aprovar</button><button onclick="rejeitar('${p._id}')">Rejeitar</button></td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+async function aprovar(id){
+  const res = await fetch(`${BASE_URL}/api/gestor/profissionais/${id}/aprovar`,{method:"POST",headers:{"Authorization":`Bearer ${token}`}});
+  const data = await res.json(); if(!data.ok) return alert(data.error || "Erro ao aprovar");
+  alert("Profissional aprovado."); refresh();
+}
+
+async function rejeitar(id){
+  const motivo = prompt("Motivo da rejeicao:", "Carteira invalida") || "Carteira rejeitada";
+  const res = await fetch(`${BASE_URL}/api/gestor/profissionais/${id}/rejeitar`,{method:"POST",headers:{"Authorization":`Bearer ${token}`,"Content-Type":"application/json"},body: JSON.stringify({ motivo })});
+  const data = await res.json(); if(!data.ok) return alert(data.error || "Erro ao rejeitar");
+  alert("Profissional rejeitado."); refresh();
+}
+
+async function addFacility(){
+  try{
+    const nome = document.getElementById("nome").value.trim();
+    const tipo = document.getElementById("tipo").value;
+    const latVal = document.getElementById("lat").value;
+    const lngVal = document.getElementById("lng").value;
+    if(!nome) return alert("Informe o nome do local");
+    if(!tipo) return alert("Informe o tipo do local");
+    if(!latVal || !lngVal) return alert("Informe latitude e longitude");
+
+    const body = {
+      nome,
+      tipo,
+      endereco: document.getElementById("endereco").value,
+      contacto: document.getElementById("contacto").value,
+      lat: Number(latVal),
+      lng: Number(lngVal),
+      especialidades: document.getElementById("especialidades").value.split(",").map(s=>s.trim()).filter(Boolean),
+      medicos: document.getElementById("medicos").value.split("\n").map(line=>{
+        const parts = line.split("-");
+        const nomeM = (parts[0]||"").trim();
+        const especialidade = (parts[1]||"").trim();
+        return nomeM ? { nome: nomeM, especialidade } : null;
+      }).filter(Boolean)
+    };
+    const res = await fetch(`${BASE_URL}/api/facilities`, { method:"POST", headers:{"Authorization":`Bearer ${token}`,"Content-Type":"application/json"}, body: JSON.stringify(body) });
+    const data = await res.json(); if(!data.ok) return alert(data.error || "Erro ao adicionar local");
+    alert("Local adicionado com sucesso"); loadFacilities();
+  }catch(e){
+    alert("Falha ao adicionar local");
+  }
+}
+
+function fillEditForm(){
+  const sel = document.getElementById("editSelect");
+  if(!sel) return;
+  const current = facilitiesCache.find(f=>f._id===sel.value);
+  if(!current) return;
+  document.getElementById("editNome").value = current.nome || "";
+  document.getElementById("editTipo").value = current.tipo || "hospital";
+  document.getElementById("editEndereco").value = current.endereco || "";
+  document.getElementById("editContacto").value = current.contacto || "";
+  document.getElementById("editLat").value = current.lat || "";
+  document.getElementById("editLng").value = current.lng || "";
+  document.getElementById("editEspecialidades").value = (current.especialidades||[]).join(", ");
+  document.getElementById("editMedicos").value = (current.medicos||[]).map(m=>`${m.nome}${m.especialidade?" - "+m.especialidade:""}`).join("\n");
+}
+
+async function saveFacilityEdit(){
+  const sel = document.getElementById("editSelect");
+  if(!sel) return;
+  const body = {
+    nome: document.getElementById("editNome").value,
+    tipo: document.getElementById("editTipo").value,
+    endereco: document.getElementById("editEndereco").value,
+    contacto: document.getElementById("editContacto").value,
+    lat: Number(document.getElementById("editLat").value),
+    lng: Number(document.getElementById("editLng").value),
+    especialidades: document.getElementById("editEspecialidades").value.split(",").map(s=>s.trim()).filter(Boolean),
+    medicos: document.getElementById("editMedicos").value.split("\n").map(line=>{
+      const parts = line.split("-");
+      const nome = (parts[0]||"").trim();
+      const especialidade = (parts[1]||"").trim();
+      return nome ? { nome, especialidade } : null;
+    }).filter(Boolean)
+  };
+  const res = await fetch(`${BASE_URL}/api/facilities/${sel.value}`, { method:"PUT", headers:{"Authorization":`Bearer ${token}`,"Content-Type":"application/json"}, body: JSON.stringify(body) });
+  const data = await res.json(); if(!data.ok) return alert(data.error || "Erro ao salvar");
+  alert("Local atualizado");
+  await loadFacilities();
+}
+
+async function deactivateFacility(){
+  const sel = document.getElementById("editSelect");
+  if(!sel) return;
+  if(!confirm("Desativar este local?")) return;
+  const res = await fetch(`${BASE_URL}/api/facilities/${sel.value}`, { method:"DELETE", headers:{"Authorization":`Bearer ${token}`} });
+  const data = await res.json(); if(!data.ok) return alert(data.error || "Erro ao desativar");
+  alert("Local desativado");
+  await loadFacilities();
+}
+
+function downloadAudits(){
+  window.open(`${BASE_URL}/api/gestor/facilities/audits.csv?limit=200`, "_blank");
+}
+function downloadAuditsPdf(){
+  window.open(`${BASE_URL}/api/gestor/facilities/audits.pdf?limit=200`, "_blank");
+}
+
+function showDiff(payload){
+  const data = typeof payload === "string" ? JSON.parse(decodeURIComponent(payload)) : payload;
+  const before = JSON.stringify(data.before || {}, null, 2);
+  const after = JSON.stringify(data.after || {}, null, 2);
+  document.getElementById("diffContent").innerText = `ANTES:\n${before}\n\nDEPOIS:\n${after}`;
+  document.getElementById("diffModal").style.display = "flex";
+}
+function closeDiff(){
+  document.getElementById("diffModal").style.display = "none";
+}
+
+async function loadAudits(){
+  const res = await fetch(`${BASE_URL}/api/gestor/facilities/audits?limit=80`,{headers:{"Authorization":`Bearer ${token}`}});
+  const data = await res.json();
+  const tbody = document.getElementById("auditBody");
+  if(!tbody) return;
+  tbody.innerHTML = "";
+  (data.audits||[]).forEach(a=>{
+    const tr=document.createElement("tr");
+    const date = new Date(a.createdAt).toLocaleString();
+    const who = `${a.actorNome || ""} ${a.actorEmail ? "("+a.actorEmail+")" : ""}`.trim();
+    tr.innerHTML = `<td>${date}</td><td>${a.action}</td><td>${a.facilityNome || a.facilityId || "-"}</td><td>${who || "-"}</td><td><button onclick="showDiff(${encodeURIComponent(JSON.stringify(a))})">Ver</button></td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function logout(){ localStorage.clear(); window.location.href="login.html"; }
+
+const farmaciaSelect = document.getElementById("farmaciaSelect");
+if(farmaciaSelect){ farmaciaSelect.addEventListener("change", loadFarmacos); }
+const editSelect = document.getElementById("editSelect");
+if(editSelect){ editSelect.addEventListener("change", fillEditForm); }
+
+if(document.getElementById("farmacoFile")){
+  document.getElementById("farmacoFile").addEventListener("change", (e)=>{
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      document.getElementById("farmacoCsv").value = String(reader.result || "").trim();
+    };
+    reader.readAsText(file);
+  });
+}
+
+function refresh(){ Promise.all([loadUsers(),loadPendentes(),loadFacilities(),loadProfissionaisPendentes(),loadAudits()]).catch(console.error); }
+refresh();
+</script>
+</body>
+</html>
+
+
+
+

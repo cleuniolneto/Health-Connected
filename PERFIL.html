@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Health Connected - Perfil</title>
+<style>
+  * {margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif;}
+  body {background: linear-gradient(135deg,#32cd32,#0077b6);color:#fff;min-height:100vh;overflow-x:hidden;}
+  header {display:flex;justify-content:flex-end;padding:15px;position:relative;}
+  .menu-btn {position:absolute;top:20px;right:20px;cursor:pointer;z-index:1000;}
+  .menu-btn div{width:30px;height:4px;background:white;margin:6px 0;border-radius:5px;}
+  .side-menu {position:fixed;top:0;right:0;width:270px;height:100%;background:rgba(0,0,0,0.95);padding:20px;transition:0.3s;transform:translateX(100%);z-index:999;overflow-y:auto;}
+  .side-menu.open {transform:translateX(0);}
+  .side-menu h3{margin-bottom:20px;border-bottom:1px solid #7CFC00;padding-bottom:10px;color:#7CFC00;}
+  .side-menu button{display:block;width:100%;margin:10px 0;padding:12px;border:none;border-radius:8px;background:#1E90FF;color:white;font-weight:bold;cursor:pointer;}
+  .profile-container{max-width:780px;margin:40px auto;padding:25px;background:rgba(255,255,255,0.1);border-radius:12px;box-shadow:0 4px 8px rgba(0,0,0,0.3);}
+  .profile-container h2{text-align:center;margin-bottom:20px;}
+  .form-group{margin-bottom:15px;}
+  .form-group label{display:block;margin-bottom:6px;font-weight:bold;}
+  .form-group input,.form-group textarea,.form-group select{width:100%;padding:12px;border-radius:8px;border:none;outline:none;}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .save-btn,.loc-btn{display:block;margin-top:10px;padding:14px;background:#0077b6;border:none;color:#fff;font-size:16px;border-radius:8px;cursor:pointer;width:100%;}
+  .save-btn:hover,.loc-btn:hover{background:#32cd32;}
+  @media (max-width:780px){.grid{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<header>
+  <div class="menu-btn" onclick="toggleMenu()"><div></div><div></div><div></div></div>
+  <div class="side-menu" id="sideMenu">
+    <h3>Menu</h3>
+    <button onclick="go('HOME 2.html')">Home</button>
+    <button onclick="go('MINHA_SAUDE.html')">Minha Saude</button>
+    <button onclick="go('CONSULTA.html')">Consulta</button>
+    <button onclick="go('CONTACTAR.html')">Contactar</button>
+    <button onclick="go('DADOS_GERAIS.html')">Dados Gerais</button>
+    <button id="btnProf" style="display:none" onclick="go('PROFISSIONAL_PANEL.html')">Painel Profissional</button>
+    <button id="btnGestor" style="display:none" onclick="go('GESTOR_PANEL.html')">Painel Gestor</button>
+    <button onclick="logout()">Sair</button>
+  </div>
+</header>
+
+<main>
+  <div class="profile-container">
+    <h2>Meu Perfil</h2>
+
+    <div class="grid">
+      <div class="form-group"><label>Nome completo</label><input type="text" id="nome"></div>
+      <div class="form-group"><label>Email</label><input type="email" id="email" disabled></div>
+      <div class="form-group"><label>Data de Nascimento</label><input type="date" id="nascimento"></div>
+      <div class="form-group"><label>Morada</label><input type="text" id="morada" placeholder="Rua, cidade, provincia"></div>
+      <div class="form-group"><label>Telefone</label><input type="text" id="telefone"></div>
+      <div class="form-group"><label>Especialidade (se profissional)</label><input type="text" id="especialidade" placeholder="Ex: Pediatria"></div>
+      <div class="form-group"><label>Altura (cm)</label><input type="number" id="altura"></div>
+      <div class="form-group"><label>Peso (kg)</label><input type="number" id="peso"></div>
+      <div class="form-group"><label>Tipo de usuario</label>
+        <select id="tipoUsuario"><option value="Paciente">Paciente</option><option value="Profissional">Profissional</option></select>
+      </div>
+      <div class="form-group" id="carteira-group" style="display:none;"><label>Numero da Carteira Profissional</label><input type="text" id="carteira"></div>
+    </div>
+
+    <div class="form-group"><label>Doencas hereditarias</label><textarea id="doencas" rows="4"></textarea></div>
+
+    <div class="grid">
+      <div class="form-group"><label>Latitude</label><input type="number" id="geoLat" step="any"></div>
+      <div class="form-group"><label>Longitude</label><input type="number" id="geoLng" step="any"></div>
+    </div>
+    <button class="loc-btn" onclick="capturarLocalizacao()">Capturar Minha Localizacao Atual</button>
+    <button class="save-btn" onclick="salvarPerfil()">Salvar Alteracoes</button>
+  </div>
+</main>
+
+
+<script>
+const BASE_URL = window.location.protocol === "file:" ? "http://localhost:3000" : window.location.origin;
+const token = localStorage.getItem("token");
+if(!token) window.location.href = "login.html";
+
+function parseJwt(token){try{return JSON.parse(atob(token.split('.')[1]));}catch(e){return null;}}
+const payload = parseJwt(token);
+if(payload?.role === "profissional") document.getElementById("btnProf").style.display = "block";
+if(payload?.role === "gestor") document.getElementById("btnGestor").style.display = "block";
+
+document.getElementById("tipoUsuario").addEventListener("change", e => {
+  document.getElementById("carteira-group").style.display = e.target.value === "Profissional" ? "block" : "none";
+});
+
+async function carregarPerfil(){
+  const res = await fetch(`${BASE_URL}/auth/me`, { headers: { "Authorization": `Bearer ${token}` } });
+  const data = await res.json();
+  if(!data.ok) return alert(data.error || "Erro ao carregar perfil");
+
+  const u = data.user;
+  document.getElementById("nome").value = u.nome || "";
+  document.getElementById("email").value = u.email || "";
+  document.getElementById("nascimento").value = u.nascimento ? u.nascimento.split("T")[0] : "";
+  document.getElementById("morada").value = u.morada || "";
+  document.getElementById("telefone").value = u.telefone || "";
+  document.getElementById("especialidade").value = u.especialidade || "";
+  document.getElementById("altura").value = u.altura || "";
+  document.getElementById("peso").value = u.peso || "";
+  document.getElementById("doencas").value = u.doencas || "";
+  document.getElementById("tipoUsuario").value = u.tipoUsuario || "Paciente";
+  document.getElementById("carteira").value = u.numeroCarteira || "";
+  if(u.tipoUsuario === "Profissional") document.getElementById("carteira-group").style.display = "block";
+  if(u.geo?.lat !== null && u.geo?.lat !== undefined) document.getElementById("geoLat").value = u.geo.lat;
+  if(u.geo?.lng !== null && u.geo?.lng !== undefined) document.getElementById("geoLng").value = u.geo.lng;
+}
+
+function capturarLocalizacao(){
+  if(!navigator.geolocation) return alert("Geolocalizacao nao suportada neste dispositivo.");
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      document.getElementById("geoLat").value = pos.coords.latitude;
+      document.getElementById("geoLng").value = pos.coords.longitude;
+    },
+    () => alert("Nao foi possivel capturar localizacao. Verifique permissoes.")
+  );
+}
+
+async function salvarPerfil(){
+  const payload = {
+    nome: document.getElementById("nome").value,
+    nascimento: document.getElementById("nascimento").value,
+    morada: document.getElementById("morada").value,
+    telefone: document.getElementById("telefone").value,
+    especialidade: document.getElementById("especialidade").value,
+    altura: document.getElementById("altura").value ? Number(document.getElementById("altura").value) : null,
+    peso: document.getElementById("peso").value ? Number(document.getElementById("peso").value) : null,
+    doencas: document.getElementById("doencas").value,
+    tipoUsuario: document.getElementById("tipoUsuario").value,
+    numeroCarteira: document.getElementById("tipoUsuario").value === "Profissional" ? document.getElementById("carteira").value : "",
+    geoLat: document.getElementById("geoLat").value ? Number(document.getElementById("geoLat").value) : null,
+    geoLng: document.getElementById("geoLng").value ? Number(document.getElementById("geoLng").value) : null
+  };
+
+  const res = await fetch(`${BASE_URL}/auth/me`, {
+    method: "PUT",
+    headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  const data = await res.json();
+  if(!data.ok) return alert(data.error || "Erro ao salvar perfil");
+  alert("Perfil atualizado com sucesso!");
+}
+
+function toggleMenu(){ document.getElementById("sideMenu").classList.toggle("open"); }
+function go(page){ window.location.href = page; }
+function logout(){ localStorage.clear(); window.location.href="login.html"; }
+
+carregarPerfil().catch((e)=>{ console.error(e); alert("Erro ao carregar perfil"); });
+</script>
+</body>
+</html>
+
+
+
+
+
+
+
+

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin - Usuarios</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f4f4f4; padding: 20px; }
+    h1 { text-align: center; color: #0047AB; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { border: 1px solid #ccc; padding: 10px; text-align: left; }
+    th { background-color: #0047AB; color: white; }
+    tr:nth-child(even) { background-color: #e9e9e9; }
+  </style>
+</head>
+<body>
+  <h1>Usuarios Cadastrados</h1>
+  <table id="userTable">
+    <thead>
+      <tr><th>Nome</th><th>Email</th><th>Role</th><th>ID</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+    <script>
+    const BASE_URL = window.location.protocol === "file:" ? "http://localhost:3000" : window.location.origin;
+    const token = localStorage.getItem("token");
+    if(!token) window.location.href = "login.html";
+
+    async function carregarUsuarios() {
+      try {
+        const res = await fetch(`${BASE_URL}/auth/usuarios`, {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if(!data.ok) return alert(data.error || "Sem permissao");
+
+        const tbody = document.querySelector("#userTable tbody");
+        tbody.innerHTML = "";
+
+        data.users.forEach(user => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `<td>${user.nome}</td><td>${user.email}</td><td>${user.role}</td><td>${user._id}</td>`;
+          tbody.appendChild(tr);
+        });
+      } catch (err) {
+        alert("Erro ao carregar usuarios");
+        console.log(err);
+      }
+    }
+
+    carregarUsuarios();
+  </script>
+</body>
+</html>
+
+
+
+
+
+
+
+

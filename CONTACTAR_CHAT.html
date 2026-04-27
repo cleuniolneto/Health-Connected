@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chat com Profissional</title>
+<style>
+body{margin:0;font-family:Arial,sans-serif;background:linear-gradient(135deg,#32cd32,#0077b6);color:#fff;}
+header{display:flex;justify-content:space-between;align-items:center;padding:12px;background:rgba(0,0,0,0.2);}
+header button{background:#1e90ff;color:#fff;border:none;border-radius:8px;padding:8px 10px;cursor:pointer;}
+.layout{max-width:1100px;margin:10px auto;padding:0 10px;display:grid;grid-template-columns:300px 1fr;gap:10px;}
+.side,.main{background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.24);border-radius:12px;}
+.side{padding:10px;max-height:78vh;overflow:auto;}
+.conv{padding:10px;border-radius:8px;background:rgba(0,0,0,0.2);margin-bottom:8px;cursor:pointer;}
+.conv.active{outline:2px solid #7CFC00;}
+.main{display:flex;flex-direction:column;min-height:78vh;}
+.chat-head{padding:10px;border-bottom:1px solid rgba(255,255,255,0.2);display:flex;justify-content:space-between;align-items:center;}
+.chat-box{flex:1;overflow:auto;padding:12px;}
+.bubble{padding:10px 12px;border-radius:12px;max-width:72%;margin:8px 0;}
+.me{margin-left:auto;background:#1e90ff;}
+.other{margin-right:auto;background:rgba(0,0,0,0.35);}
+.input{display:flex;padding:10px;border-top:1px solid rgba(255,255,255,0.2);}
+.input input{flex:1;padding:10px;border:none;border-radius:8px;}
+.input button{margin-left:8px;padding:10px 12px;border:none;border-radius:8px;background:#22c55e;color:#fff;font-weight:700;cursor:pointer;}
+@media(max-width:920px){.layout{grid-template-columns:1fr;}.side{max-height:260px;}.main{min-height:62vh;}}
+</style>
+</head>
+<body>
+<header>
+  <h3 style="margin:0;">Conversas</h3>
+  <div>
+    <button onclick="window.location.href='CONTACTAR.html'">Profissionais</button>
+    <button onclick="window.location.href='HOME 2.html'">Home</button>
+  </div>
+</header>
+
+<div class="layout">
+  <aside class="side">
+    <h4 style="margin:0 0 8px;">Chats</h4>
+    <div id="conversas"></div>
+  </aside>
+
+  <section class="main">
+    <div class="chat-head">
+      <div><b id="chatName">Selecione um profissional</b><br><small id="chatMeta"></small></div>
+      <div>
+        <button onclick="abrirJitsi('audio')">Chamada</button>
+        <button onclick="abrirJitsi('video')">Video</button>
+      </div>
+    </div>
+    <div class="chat-box" id="chat"></div>
+    <div class="input">
+      <input id="msg" placeholder="Digite sua mensagem..." onkeydown="if(event.key==='Enter') sendMessage()">
+      <button onclick="sendMessage()">Enviar</button>
+    </div>
+  </section>
+</div>
+
+
+<script>
+const BASE_URL = window.location.protocol === "file:" ? "http://localhost:3000" : window.location.origin;
+const token = localStorage.getItem("token");
+if(!token) window.location.href = "login.html";
+
+function parseJwt(token){try{return JSON.parse(atob(token.split('.')[1]));}catch(e){return null;}}
+const me = parseJwt(token);
+let activeUserId = new URLSearchParams(window.location.search).get("user") || "";
+let pollTimer = null;
+
+async function fetchJson(url, opts={}){
+  const res = await fetch(url, { ...opts, headers: { ...(opts.headers||{}), "Authorization": `Bearer ${token}` } });
+  return res.json();
+}
+
+async function loadConversas(){
+  const data = await fetchJson(`${BASE_URL}/api/chat/conversas`);
+  const box = document.getElementById("conversas");
+  box.innerHTML = "";
+
+  if(data.ok){
+    data.conversas.forEach(c=>{
+      const div = document.createElement("div");
+      div.className = `conv ${c.userId===activeUserId?'active':''}`;
+      div.innerHTML = `<b>${c.nome}</b><br><small>${c.especialidade || ''}</small><br><small>${c.lastMessage || ''}</small>`;
+      div.onclick = ()=>selectChat(c.userId, c.nome, c.especialidade || "");
+      box.appendChild(div);
+    });
+  }
+
+  if(activeUserId && !document.querySelector(`.conv.active`)){
+    await hydrateActiveFromProfessionals(activeUserId);
+  }
+}
+
+async function hydrateActiveFromProfessionals(id){
+  const data = await fetchJson(`${BASE_URL}/api/profissionais`);
+  if(!data.ok) return;
+  const p = (data.profissionais || []).find(x=>x._id===id);
+  if(p) selectChat(p._id, p.nome, p.especialidade || "", false);
+}
+
+function selectChat(userId, nome, meta, doReload=true){
+  activeUserId = userId;
+  document.getElementById("chatName").innerText = nome || "Conversa";
+  document.getElementById("chatMeta").innerText = meta || "";
+  loadConversas();
+  if(doReload) loadMessages();
+}
+
+async function loadMessages(){
+  if(!activeUserId) return;
+  const data = await fetchJson(`${BASE_URL}/api/chat/messages/${encodeURIComponent(activeUserId)}?limit=300`);
+  if(!data.ok) return;
+  const box = document.getElementById("chat");
+  box.innerHTML = "";
+  data.messages.forEach(m=>{
+    const mine = String(m.senderId) === String(me.id);
+    const div = document.createElement("div");
+    div.className = `bubble ${mine ? 'me' : 'other'}`;
+    div.textContent = m.text;
+    box.appendChild(div);
+  });
+  box.scrollTop = box.scrollHeight;
+}
+
+async function sendMessage(){
+  if(!activeUserId) return alert("Selecione um profissional para iniciar a conversa.");
+  const input = document.getElementById("msg");
+  const text = input.value.trim();
+  if(!text) return;
+
+  const data = await fetchJson(`${BASE_URL}/api/chat/messages/${encodeURIComponent(activeUserId)}`, {
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({ text })
+  });
+  if(!data.ok) return alert(data.error || "Falha ao enviar mensagem");
+
+  input.value = "";
+  await loadMessages();
+  await loadConversas();
+}
+
+function abrirJitsi(mode){
+  const room = `drclick-${mode}-${activeUserId || Date.now()}`;
+  window.open(`https://meet.jit.si/${encodeURIComponent(room)}`, "_blank", "noopener,noreferrer");
+}
+
+async function init(){
+  await loadConversas();
+  if(activeUserId){
+    await hydrateActiveFromProfessionals(activeUserId);
+    await loadMessages();
+  }
+  pollTimer = setInterval(async()=>{ if(activeUserId){ await loadMessages(); await loadConversas(); } }, 3000);
+}
+
+init().catch(console.error);
+window.addEventListener('beforeunload',()=>{ if(pollTimer) clearInterval(pollTimer); });
+</script>
+</body>
+</html>
+
+
+
+
+
+
+
+
